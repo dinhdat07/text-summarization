@@ -51,7 +51,7 @@ How much do decoding strategies affect summary quality?
 
 ## RQ4
 
-Can Sliding Window improve summarization for long documents?
+How do chunking-based post-hoc methods (Hierarchical Sliding Window with BARTpho) compare to native long-context processing in modern LLMs (Qwen2.5) for long documents?
 
 ---
 
@@ -166,6 +166,7 @@ Bao gồm
 - Sentence segmentation
 - Remove invalid records
 - Length filtering
+- **Data-centric Filtering (Anti-Lead Bias):** Loại bỏ các bài báo mà tóm tắt (abstract) trùng lặp quá 80% với 3 câu đầu tiên (sapo) để ép mô hình học cách đọc hiểu toàn cục.
 - Statistics
 
 EDA gồm:
@@ -275,22 +276,21 @@ So sánh
 
 ---
 
-# 12. Optional Research Direction 1
+# 12. Research Direction 3
 
-Nếu còn thời gian sau khi hoàn thành 3 mục tiêu chính.
+Dựa trên kết quả EDA cho thấy nhiều bài báo có độ dài từ 1000-2000 tokens (vượt quá max_length của mô hình), kỹ thuật này được đưa thành một thử nghiệm chính nhằm xử lý Long Document Summarization.
 
-## Long Document Strategy (Sliding Window)
+## Long-Context Native vs Hierarchical Sliding Window
 
 Benchmark
 
-- No Sliding
-- Sliding 512
-- Sliding 768
-- Sliding 1024
+- BARTpho: No Sliding (Truncation at 1024)
+- BARTpho: Hierarchical Sliding Window (Map-Reduce logic: Tóm tắt từng chunk 512, sau đó nối lại và tóm tắt lần 2).
+- Qwen2.5-0.5B: Native Long-Context (max_length=2048, Gradient Checkpointing).
 
 Mục tiêu
 
-Đánh giá ảnh hưởng của Window Size tới chất lượng tóm tắt. (Yêu cầu phải có đủ dữ liệu bài báo dài trong tập Vietnews để thực hiện).
+Đánh giá tác động của Sliding Window đến chất lượng tóm tắt các văn bản vượt quá Context Window của mô hình Seq2Seq, và so sánh sức mạnh xử lý nguyên bản của kiến trúc LLM (RoPE).
 
 ---
 
@@ -486,11 +486,15 @@ Dự án không hướng tới phát minh thuật toán mới.
 
 4. Đánh giá ảnh hưởng của Decoding Strategy.
 
-5. Đánh giá chất lượng sinh bằng phương pháp hiện đại LLM-as-a-Judge.
+5. Triển khai kiến trúc Hierarchical Sliding Window (Map-Reduce) và so sánh với Native Long-Context (Qwen2.5).
 
-6. Xây dựng Error Taxonomy cho Vietnamese Summarization.
+6. Đánh giá chất lượng sinh bằng phương pháp hiện đại LLM-as-a-Judge.
 
-7. Phân tích định lượng và định tính thay vì chỉ báo cáo ROUGE.
+7. Làm sạch dữ liệu theo hướng Data-Centric (chống Lead-Bias).
+
+8. Xây dựng Error Taxonomy cho Vietnamese Summarization.
+
+9. Phân tích định lượng và định tính thay vì chỉ báo cáo ROUGE.
 
 ---
 

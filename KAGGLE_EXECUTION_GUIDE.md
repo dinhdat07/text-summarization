@@ -23,8 +23,12 @@ Tài liệu này cung cấp sơ đồ phụ thuộc (Dependency Graph) và hư�
       │        (Model Full)    (Adapter)       (Adapter)
       │              └───────┬───────┴────────────────┘
       │                      ▼
-      │                   [NB 5] (Đánh giá ROUGE & Sinh text)
-      │                      │
+      │      ┌───────────────┴───────────────┐
+      │      ▼                               ▼
+      │   [NB 5] (Decoding)            [NB 8] (Sliding Window)
+      │      │                               │
+      │      └───────────────┬───────────────┘
+      │                      ▼
       │         (Tạo ra: all_models_predictions.csv)
       │                      ▼
       └───────────────►   [NB 7] (LLM-as-a-Judge)
@@ -38,7 +42,7 @@ Tài liệu này cung cấp sơ đồ phụ thuộc (Dependency Graph) và hư�
 *   **Notebook:** `01_Data_Preparation_and_EDA.ipynb`
 *   **Hardware:** CPU
 *   **Input:** Tự động tải từ HuggingFace (không cần Add Data thủ công).
-*   **Output:** Tạo ra 3 file CSV (`train_10k.csv`, `val_1k.csv`, `test_1k.csv`). 
+*   **Output:** Tạo ra 3 file CSV (`train_10k.csv`, `val_1k.csv`, `test_1k.csv`). *Lưu ý: Dataset gốc có hơn 100k mẫu, Notebook sẽ tự động quét 30,000 mẫu đầu tiên, lọc bỏ các mẫu rác/lead-bias, sau đó lấy đúng 12,000 mẫu siêu sạch để chia 10k/1k/1k.*
 *   **Hành động trên Kaggle:** Nhấn `Save Version` (chọn Save & Run All). Đợi Notebook hoàn thành, Output của Notebook này sẽ được dùng làm Dataset (thông qua nút Add Data) cho tất cả các Notebook sau.
 *   **Thời gian ước tính:** 5-10 phút.
 
@@ -59,31 +63,35 @@ Sau khi hoàn thành Bước 1, tạo 4 Notebook riêng biệt trên Kaggle. Tro
     *   **Output:** Trọng số mô hình Full.
     *   **Thời gian ước tính:** ~ 4 - 5 tiếng.
 3.  **`04_LoRA_Finetuning_BARTpho.ipynb`**
-    *   **Hardware:** Bắt buộc GPU T4
+    *   **Hardware:** Bắt buộc GPU T4 x2 (Khuyên dùng) hoặc T4 x1.
     *   **Input Data:** Cần file `train_10k.csv`, `val_1k.csv`.
     *   **Output:** Trọng số LoRA Adapter (vài chục MB).
     *   **Thời gian ước tính:** ~ 1.5 - 2 tiếng.
 4.  **`06_LoRA_Finetuning_Qwen2.5.ipynb`**
-    *   **Hardware:** Bắt buộc GPU T4
+    *   **Hardware:** Bắt buộc GPU T4 x2 (Khuyên dùng) hoặc T4 x1.
     *   **Input Data:** Cần file `train_10k.csv`, `val_1k.csv`.
+    *   **Điểm nhấn kỹ thuật:** Train với `max_length=2048` (Long-context) và bật Gradient Checkpointing.
     *   **Output:** Trọng số LoRA Adapter.
-    *   **Thời gian ước tính:** ~ 2 tiếng.
+    *   **Thời gian ước tính:** ~ 2-3 tiếng (do train chuỗi dài).
 
 > **💡 Mẹo:** Hãy sử dụng chế độ `Save Version -> Save & Run All (Commit)` khi train GPU. Máy chủ Kaggle sẽ chạy ngầm và tự lưu model cho dù bạn có tắt trình duyệt.
 
 ---
 
 ### 🟢 BƯỚC 3: Đánh giá và Xuất kết quả
-Chỉ chạy sau khi Bước 1 và Bước 2 đã hoàn thiện và sinh ra các Models.
-*   **Notebook:** `05_Evaluation_and_Decoding.ipynb`
+Chỉ chạy sau khi Bước 1 và Bước 2 đã hoàn thiện và sinh ra các Models. (Có thể chạy NB5 và NB8 song song).
+
+1. **Notebook 5:** `05_Evaluation_and_Decoding.ipynb` (Inference mặc định cắt cụt ở 1024 token).
+2. **Notebook 8:** `08_Sliding_Window_Inference.ipynb` (Inference văn bản dài sử dụng kiến trúc Map-Reduce Hierarchical).
+
 *   **Hardware:** GPU T4
 *   **Input Data (Add Data):** 
     1. Output của Bước 1 (lấy `test_1k.csv`).
     2. Output của NB 3 (lấy model full).
     3. Output của NB 4 (lấy lora adapter).
     4. Output của NB 6 (lấy qwen adapter).
-*   **Output:** File `all_models_predictions.csv` (lưu kết quả sinh tóm tắt của 1000 bài báo để chấm điểm LLM sau này).
-*   **Thời gian ước tính:** ~ 1 tiếng.
+*   **Output:** File `all_models_predictions.csv` và các file kết quả điểm số ROUGE.
+*   **Thời gian ước tính:** ~ 1 tiếng mỗi Notebook.
 
 ---
 
