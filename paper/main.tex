@@ -515,6 +515,36 @@ Qwen2.5 thể hiện sự cân bằng đáng chú ý giữa các chỉ số. BLE
 \paragraph{LoRA so với Full Fine-Tuning.}
 Kết quả cho thấy LoRA trên BARTpho (ROUGE-1: 50.17) đạt hiệu năng tiệm cận FFT (ROUGE-1: 50.24), với chênh lệch chỉ 0.07 điểm ($\Delta = 0.14\%$). Trên BLEU, LoRA thậm chí cao hơn nhẹ (2.34 so với 2.25). Xét đến việc LoRA giảm trên 95\% số lượng tham số cần cập nhật và tiêu thụ bộ nhớ GPU ít hơn đáng kể, kết quả này khẳng định tính khả thi cao của kỹ thuật PEFT trong các bài toán tóm tắt tiếng Việt, đặc biệt trong bối cảnh phần cứng hạn chế. Điều này đồng thuận với kết luận của Hu et al. \cite{lora} rằng không gian cập nhật thực sự hiệu quả thường có chiều thấp hơn nhiều so với toàn bộ không gian tham số.
 
+\subsection{Phân tích Ảnh hưởng của Chiến lược Giải mã}
+
+Trong quá trình sinh văn bản tự động, chiến lược giải mã (decoding strategy) đóng vai trò then chốt trong việc kiểm soát tính đa dạng và độ chính xác của từ vựng được chọn. Bảng \ref{tab:decoding_eval} trình bày kết quả thử nghiệm các chiến lược giải mã khác nhau trên mô hình BARTpho (Full Fine-Tuning) bao gồm phương pháp tất định (Greedy, Beam Search) và phương pháp lấy mẫu (Top-k, Top-p).
+
+\begin{table}[H]
+\centering
+\caption{Ảnh hưởng của các chiến lược giải mã khác nhau đến chất lượng và thời gian sinh tóm tắt trên mô hình BARTpho.}
+\label{tab:decoding_eval}
+\begin{tabular}{@{}lccccccc@{}}
+\toprule
+\textbf{Chiến lược} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{BLEU} & \textbf{BERT-F1} & \textbf{Thời gian (phút)} \\
+\midrule
+Greedy & 49.69 & \textbf{15.42} & \textbf{30.73} & 2.21 & \textbf{66.91} & \textbf{15.7} \\
+Beam Search ($k=4$) & 50.24 & 15.26 & 30.53 & \textbf{2.25} & 66.46 & 24.5 \\
+Beam Search ($k=8$) & 50.20 & 14.91 & 30.34 & 2.21 & 66.20 & 41.0 \\
+Top-k ($k=50$) & \textbf{50.34} & 13.69 & 29.54 & 1.65 & 66.22 & 16.6 \\
+Top-p ($p=0.9$) & 49.72 & 13.81 & 29.28 & 1.78 & 66.36 & 16.2 \\
+Top-p ($p=0.95$) & 50.04 & 13.39 & 29.17 & 1.76 & 66.11 & 16.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Kết quả thực nghiệm cho thấy một sự đánh đổi rõ rệt giữa chất lượng, tốc độ và tính đa dạng từ vựng trong nhiệm vụ tóm tắt. Cụ thể:
+
+Thứ nhất, đối với nhiệm vụ tóm tắt vốn đòi hỏi tính ràng buộc cao và sự trung thành với văn bản gốc, các chiến lược tất định (Deterministic) như Greedy Search và Beam Search thể hiện sự ưu việt hơn so với các chiến lược lấy mẫu (Stochastic) như Top-k và Top-p. Mặc dù Top-k ($k=50$) đạt đỉnh ROUGE-1 (50.34), sự suy giảm mạnh ở các chỉ số đánh giá cấu trúc n-gram (ROUGE-2 chỉ đạt 13.69, BLEU giảm xuống 1.65) cho thấy việc lấy mẫu ngẫu nhiên đôi khi phá vỡ tính mạch lạc của câu văn tiếng Việt.
+
+Thứ hai, hiện tượng ``Beam Search Curse'' (sự suy giảm chất lượng khi kích thước chùm tia quá lớn) được quan sát rõ ràng. Việc tăng kích thước Beam từ 4 lên 8 không những làm tăng thời gian suy luận lên 1.67 lần (từ 24.5 phút lên 41.0 phút), mà còn làm giảm toàn bộ các hệ số chất lượng (ROUGE-1 giảm từ 50.24 xuống 50.20, BLEU giảm từ 2.25 xuống 2.21). Điều này xảy ra do chùm tia lớn có xu hướng ưu tiên các chuỗi mang tính khái quát, ngắn gọn hoặc an toàn quá mức, làm mất đi các chi tiết quan trọng trong bản tóm tắt.
+
+Thứ ba, Greedy Search chứng minh hiệu năng đáng kinh ngạc trong bài toán này. Là phương pháp nhanh nhất (15.7 phút), Greedy Search lại vượt mặt tất cả các phương pháp khác ở ROUGE-2 (15.42), ROUGE-L (30.73), và đặc biệt là BERTScore-F1 (66.91). Điều này gợi ý rằng không gian xác suất đầu ra của BARTpho sau khi tinh chỉnh đã hội tụ rất sắc nét (sharp distribution), khiến việc tìm kiếm mở rộng (như Beam Search) mang lại ít lợi ích cận biên so với chi phí tính toán bỏ ra. Dựa trên phân tích này, chúng tôi chọn Beam Search ($k=4$) làm cấu hình cân bằng chuẩn cho các so sánh tổng thể, và Greedy Search như một sự thay thế tối ưu trong các hệ thống yêu cầu độ trễ thấp.
+
 \subsection{Đánh giá trên Tập Văn bản Dài}
 
 Bảng \ref{tab:long_eval} và Hình \ref{fig:long} trình bày kết quả trên tập Long Document Set (các bài báo $\geq 800$ từ), nhằm trả lời trực tiếp câu hỏi nghiên cứu RQ3. Phần đánh giá này tập trung so sánh các chiến lược xử lý ngữ cảnh dài giữa BARTpho và Qwen2.5, do đó các phương pháp trích xuất (Lead-3, TextRank) không được đưa vào bảng so sánh vì bản chất của chúng không bị ảnh hưởng bởi giới hạn ngữ cảnh -- phương pháp trích xuất chọn câu nguyên văn và không phụ thuộc vào cửa sổ ngữ cảnh của mô hình.
