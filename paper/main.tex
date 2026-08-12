@@ -585,7 +585,7 @@ Bảng \ref{tab:long_eval} và Hình \ref{fig:long} trình bày kết quả trê
 \textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{ROUGE-Lsum} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
 \midrule
 FFT -- BARTpho (Truncation 1024)    & \textbf{47.79} & 12.05 & 26.94 & 26.93 & 1.22 & 63.64 \\
-FFT -- BARTpho (Sliding Window)     & 47.05 & 12.49 & 26.16 & 26.16 & 0.64 & 62.98 \\
+FFT -- BARTpho (Map-Reduce Sliding Window) & 47.05 & 12.49 & 26.16 & 26.16 & 0.64 & 62.98 \\
 LoRA -- Qwen2.5 (Native 2048)       & 45.38 & \textbf{16.81} & \textbf{27.06} & \textbf{27.08} & \textbf{6.27} & \textbf{68.94} \\
 \bottomrule
 \end{tabular}}
@@ -608,7 +608,7 @@ Mặt khác, ROUGE-1 của Qwen2.5 (45.38) thấp hơn BARTpho Normal Truncation
 
 \subsection{Đánh giá Chất lượng Sinh bằng LLM-as-a-Judge}
 
-Bên cạnh các độ đo tự động truyền thống, chúng tôi áp dụng phương pháp LLM-as-a-Judge sử dụng mô hình Gemini 1.5 Flash-Lite (được tối ưu hóa cho tốc độ và hiệu quả chi phí) để đánh giá đa chiều chất lượng văn bản sinh ra trên một tập mẫu ngẫu nhiên gồm 100 bài báo từ tập kiểm thử chung. Đánh giá được thực hiện trên 4 tiêu chí cốt lõi: Sự liên quan (Relevance), Tính mạch lạc (Coherence), Tính nhất quán (Consistency), và Độ trôi chảy (Fluency). Bảng \ref{tab:llm_judge} và Hình \ref{fig:llm_judge} trình bày kết quả đánh giá.
+Bên cạnh các độ đo tự động truyền thống, chúng tôi áp dụng phương pháp LLM-as-a-Judge sử dụng mô hình Gemini 3.5 Flash-Lite (được tối ưu hóa cho tốc độ và hiệu quả chi phí) để đánh giá đa chiều chất lượng văn bản sinh ra trên một tập mẫu ngẫu nhiên gồm 100 bài báo từ tập kiểm thử chung. Đánh giá được thực hiện trên 4 tiêu chí cốt lõi: Sự liên quan (Relevance), Tính mạch lạc (Coherence), Tính nhất quán (Consistency), và Độ trôi chảy (Fluency). Bảng \ref{tab:llm_judge} và Hình \ref{fig:llm_judge} trình bày kết quả đánh giá.
 
 \begin{table}[H]
 \centering
@@ -670,7 +670,7 @@ Nghiên cứu này đã thực hiện đánh giá toàn diện bài toán tóm t
 \midrule
 RQ1 & Seq2Seq vs. Causal LLM & BARTpho bao phủ từ vựng rộng (ROUGE-1: 50.24), Qwen2.5 sinh văn bản trôi chảy hơn (BLEU: 9.19 vs 2.25) \\
 RQ2 & LoRA vs. Full Fine-Tuning & LoRA tiệm cận FFT ($\Delta$ ROUGE-1 = 0.07, tương đương 0.14\%) với $<$5\% tham số \\
-RQ3 & Sliding Window vs. Native Long-Context & Native Long-Context vượt trội (BLEU 6.14 vs 0.64), Map-Reduce gây Information Bottleneck \\
+RQ3 & Sliding Window vs. Native Long-Context & Native Long-Context vượt trội (BLEU 6.27 vs 0.64), Map-Reduce gây Information Bottleneck \\
 \bottomrule
 \end{tabular}
 \end{table}
