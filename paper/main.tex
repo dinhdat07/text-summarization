@@ -545,6 +545,30 @@ Thứ hai, hiện tượng ``Beam Search Curse'' (sự suy giảm chất lượn
 
 Thứ ba, Greedy Search chứng minh hiệu năng đáng kinh ngạc trong bài toán này. Là phương pháp nhanh nhất (15.7 phút), Greedy Search lại vượt mặt tất cả các phương pháp khác ở ROUGE-2 (15.42), ROUGE-L (30.73), và đặc biệt là BERTScore-F1 (66.91). Điều này gợi ý rằng không gian xác suất đầu ra của BARTpho sau khi tinh chỉnh đã hội tụ rất sắc nét (sharp distribution), khiến việc tìm kiếm mở rộng (như Beam Search) mang lại ít lợi ích cận biên so với chi phí tính toán bỏ ra. Dựa trên phân tích này, chúng tôi chọn Beam Search ($k=4$) làm cấu hình cân bằng chuẩn cho các so sánh tổng thể, và Greedy Search như một sự thay thế tối ưu trong các hệ thống yêu cầu độ trễ thấp.
 
+Bảng \ref{tab:decoding_case_study} cung cấp một ví dụ định tính minh họa sự khác biệt giữa các chiến lược giải mã trên cùng một văn bản đầu vào. Có thể thấy, các phương pháp tất định (Greedy, Beam Search) nắm bắt được ý chính của văn bản (quân đội Nga trưng bày chiến lợi phẩm). Ngược lại, các phương pháp lấy mẫu (Top-k, Top-p) sinh ra những nội dung sai lệch nghiêm trọng (hallucination), ví dụ như ``chiến dịch không hải'' hoặc ``đồng hồ SGS 44.3'', làm mất hoàn toàn tính mạch lạc của bản tóm tắt.
+
+\begin{table}[H]
+\centering
+\caption{Ví dụ định tính so sánh kết quả sinh tóm tắt của các chiến lược giải mã khác nhau từ mô hình BARTpho (Full Fine-Tuning).}
+\label{tab:decoding_case_study}
+\small
+\begin{tabular}{@{}p{0.15\textwidth}p{0.8\textwidth}@{}}
+\toprule
+\textbf{Phương pháp} & \textbf{Nội dung tóm tắt} \\
+\midrule
+\textbf{Tham chiếu} & Quân đội Nga thu được nhiều chiến lợi phẩm trong chiến dịch chống phiến quân tại Syria, gồm cả những vũ khí ra đời từ Thế chiến II. \\
+\midrule
+\textbf{Greedy} & Xe tăng chống phiến quân IS có thiết kế lạ lùng, được cho là do Anh thiết kế trong Thế chiến II. \\
+\textbf{Beam ($k=4$)} & Bộ Quốc phòng Nga trưng bày những chiến lợi phẩm thu được từ chiến dịch quân sự chống phiến quân Nhà nước Hồi giáo (IS) trong ba năm qua. \\
+\textbf{Beam ($k=8$)} & Bộ Quốc phòng Nga trưng bày những chiến lợi phẩm thu được từ chiến dịch quân sự chống phiến quân Nhà nước Hồi giáo (IS) suốt ba năm qua, trong đó có nhiều loại khí tài có thiết kế nguồn gốc khác thường. \\
+\midrule
+\textbf{Top-k ($k=50$)} & Trong ảnh là chiến dịch xe tăng mà bộ Quốc phòng Nga trưng bày tại Moskva. \\
+\textbf{Top-p ($p=0.9$)} & Phiến quân tìm thấy những khẩu súng cực hiện đại bị phá huỷ từ thời Thế chiến II trong đồng hồ SGS 44.3 và đặt trải trong chiến dịch không hải chống IS. \\
+\textbf{Top-p ($p=0.95$)}& Nếu một chiếc xe tăng đời cổ của Anh xuất hiện tại Nga, Syria có thể được trang bị vũ khí hiện đại, được mua từ Jordan và sau đó tháo đi từ Pháp. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Đánh giá trên Tập Văn bản Dài}
 
 Bảng \ref{tab:long_eval} và Hình \ref{fig:long} trình bày kết quả trên tập Long Document Set (các bài báo $\geq 800$ từ), nhằm trả lời trực tiếp câu hỏi nghiên cứu RQ3. Phần đánh giá này tập trung so sánh các chiến lược xử lý ngữ cảnh dài giữa BARTpho và Qwen2.5, do đó các phương pháp trích xuất (Lead-3, TextRank) không được đưa vào bảng so sánh vì bản chất của chúng không bị ảnh hưởng bởi giới hạn ngữ cảnh -- phương pháp trích xuất chọn câu nguyên văn và không phụ thuộc vào cửa sổ ngữ cảnh của mô hình.
