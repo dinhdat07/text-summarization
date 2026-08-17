@@ -5,7 +5,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 # Model checkpoint paths
-MODELS_DIR = PROJECT_ROOT / "models"
+# Primary: demo/models/ (sibling to backend/)
+DEMO_ROOT = Path(__file__).resolve().parent.parent.parent  # demo/
+MODELS_DIR = DEMO_ROOT / "models"
+# Fallback: project root models/
+if not MODELS_DIR.exists():
+    MODELS_DIR = PROJECT_ROOT / "models"
 BARTPHO_FFT_PATH = MODELS_DIR / "bartpho_full_ft_final"
 BARTPHO_LORA_PATH = MODELS_DIR / "bartpho_lora_final"
 QWEN_LORA_PATH = MODELS_DIR / "qwen-lora-vietnews"
