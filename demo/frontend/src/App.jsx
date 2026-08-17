@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
-import SampleBrowser from './components/SampleBrowser';
 import InputSection from './components/InputSection';
 import ResultsPanel from './components/ResultsPanel';
+import Footer from './components/Footer';
 import {
   healthCheck,
   getAvailableModels,
@@ -15,6 +15,7 @@ import {
 
 export default function App() {
   // State
+  const [theme, setTheme] = useState('dark');
   const [backendStatus, setBackendStatus] = useState('checking');
   const [availableModels, setAvailableModels] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -39,6 +40,11 @@ export default function App() {
     checkBackend();
   }, []);
 
+  // Theme toggle side-effect
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
   // Clear error after 5 seconds
   useEffect(() => {
     if (error) {
@@ -46,6 +52,18 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleReset = useCallback(() => {
+    setInputText('');
+    setReference('');
+    setPredictions(null);
+    setMetrics(null);
+    setError(null);
+  }, []);
 
   // Handle sample loading
   const handleSampleLoaded = useCallback(async (type, index) => {
@@ -55,7 +73,7 @@ export default function App() {
       const sample = type === 'random' ? await getRandomSample() : await getSample(index);
       setInputText(sample.article);
       setReference(sample.reference);
-      setPredictions(sample.predictions);
+      setPredictions(null); // Clear predictions to force live inference (which uses the new clean post-processing)
       setMetrics(null);
     } catch (e) {
       setError(e.message);
@@ -112,25 +130,24 @@ export default function App() {
   }, [predictions, reference]);
 
   return (
-    <div className="container">
+    <div className="container pb-12">
       <Header
         backendStatus={backendStatus}
         modelCount={availableModels.length}
+        theme={theme}
+        onThemeToggle={toggleTheme}
       />
 
-      <div className="mt-3">
+      <main className="main-content">
         {backendStatus === 'disconnected' && (
-          <div className="card mb-4" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'var(--error)' }}>
-            <p style={{ color: '#fca5a5' }}>
+          <div className="card mb-6" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'var(--error)' }}>
+            <p style={{ color: 'var(--error)' }}>
               <strong>⚠️ Backend Unreachable:</strong> Demo đang chạy ở chế độ Frontend-only.
               Hãy đảm bảo đã khởi động backend tại <code>localhost:8000</code>.
             </p>
           </div>
         )}
-        <SampleBrowser onSampleLoaded={handleSampleLoaded} loading={loading} />
-      </div>
-
-      <div className="mt-3">
+        
         <InputSection
           inputText={inputText}
           setInputText={setInputText}
@@ -139,43 +156,50 @@ export default function App() {
           onScrape={handleScrape}
           onSummarize={handleSummarize}
           onComputeMetrics={handleComputeMetrics}
+          onSampleLoaded={handleSampleLoaded}
+          onReset={handleReset}
           loading={loading}
           hasModels={availableModels.length > 0}
           hasPredictions={!!predictions}
         />
-      </div>
 
-      {/* Article Preview */}
-      {inputText && (
-        <div className="card mt-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Nội dung bài báo</h3>
-            <span className="badge">{inputText.split(/\s+/).length} từ</span>
+        {/* Article Preview */}
+        {inputText && (
+          <div className="card mb-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Nội dung bài báo</h3>
+              <span className="badge badge-fft">{inputText.split(/\s+/).length} từ</span>
+            </div>
+            <p className="summary-text mt-2" style={{ color: 'var(--text-secondary)', maxHeight: '200px', overflow: 'auto' }}>
+              {inputText}
+            </p>
           </div>
-          <p className="summary-text mt-2" style={{ color: 'var(--text-secondary)', maxHeight: '200px', overflow: 'auto' }}>
-            {inputText}
-          </p>
-        </div>
-      )}
+        )}
 
-      {/* Reference Preview */}
-      {reference && (
-        <div className="card mt-2">
-          <h3 className="text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Tóm tắt tham chiếu</h3>
-          <p className="summary-text mt-1" style={{ color: 'var(--success)' }}>{reference}</p>
-        </div>
-      )}
+        {/* Reference Preview */}
+        {reference && (
+          <div className="card mb-6">
+            <h3 className="text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Tóm tắt tham chiếu</h3>
+            <p className="summary-text mt-2" style={{ color: 'var(--success-bright)' }}>{reference}</p>
+          </div>
+        )}
 
-      <ResultsPanel
-        predictions={predictions}
-        metrics={metrics}
-        loading={loading}
-      />
+        <ResultsPanel
+          predictions={predictions}
+          metrics={metrics}
+          loading={loading}
+        />
 
-      {/* Error Toast */}
-      {error && (
-        <div className="error-toast">{error}</div>
-      )}
+        {/* Error Toast */}
+        {error && (
+          <div className="error-toast">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
+      </main>
+
+      <Footer />
     </div>
   );
 }
