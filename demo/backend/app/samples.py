@@ -19,6 +19,19 @@ def get_total_samples() -> int:
         return len(_df)
     return 0
 
+import re
+
+def _quick_clean(text: str) -> str:
+    # Replace underscores with space
+    text = text.replace('_', ' ')
+    # Fix punctuation spacing
+    text = re.sub(r'\s+([.,!?;:])', r'\1', text)
+    text = re.sub(r'\(\s+', '(', text)
+    text = re.sub(r'\s+\)', ')', text)
+    # Clean multiple spaces
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
 def get_sample(index: int) -> dict:
     load_data()
     if _df is None or _df.empty or index < 0 or index >= len(_df):
@@ -27,12 +40,12 @@ def get_sample(index: int) -> dict:
     row = _df.iloc[index]
     return {
         "index": index,
-        "article": str(row.get("article", "")),
-        "reference": str(row.get("reference", "")),
+        "article": _quick_clean(str(row.get("article", ""))),
+        "reference": _quick_clean(str(row.get("reference", ""))),
         "predictions": {
-            "bartpho_fft": str(row.get("bartpho_full_beam", "")),
-            "bartpho_lora": str(row.get("bartpho_lora_beam", "")),
-            "qwen_lora": str(row.get("qwen_lora_beam", ""))
+            "bartpho_fft": _quick_clean(str(row.get("bartpho_full_beam", ""))),
+            "bartpho_lora": _quick_clean(str(row.get("bartpho_lora_beam", ""))),
+            "qwen_lora": _quick_clean(str(row.get("qwen_lora_beam", "")))
         }
     }
 
