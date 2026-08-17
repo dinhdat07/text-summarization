@@ -10,19 +10,19 @@ export default function MetricsDisplay({ metrics }) {
   ];
 
   const getColor = (value) => {
-    if (value >= 60) return 'var(--success)';
+    if (value >= 60) return 'var(--success-bright)';
     if (value >= 30) return 'var(--warning)';
     return 'var(--error)';
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {metricItems.map(({ key, label }) => {
         const value = metrics[key] || 0;
         return (
           <div key={key}>
-            <div className="flex items-center justify-between" style={{ marginBottom: '4px' }}>
-              <span className="text-sm text-muted">{label}</span>
+            <div className="flex items-center justify-between" style={{ marginBottom: '6px' }}>
+              <span className="text-sm text-secondary" style={{ fontWeight: 500 }}>{label}</span>
               <span className="metric-value">{value.toFixed(2)}</span>
             </div>
             <div className="metric-bar">
