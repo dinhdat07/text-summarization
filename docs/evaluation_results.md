@@ -20,6 +20,11 @@ Mục tiêu: Đánh giá khả năng xử lý ngữ cảnh dài (Long-Context) v
 | FFT - BARTpho (Sliding Window) | 47.05 | 12.49 | 26.16 | 26.16 | 0.64 | 62.98 |
 | LoRA - Qwen2.5 (Native 2048 tokens) | 45.62 | 17.11 | 27.27 | 27.35 | 6.14 | 68.94 |
 
+LLM Judge
+               model    id  Relevance  Coherence  Consistency  Fluency
+0  bartpho_full_beam  49.5       2.80       3.55         4.06     2.73
+1  bartpho_lora_beam  49.5       2.73       3.48         3.89     2.67
+2     qwen_lora_beam  49.5       2.44       2.22         3.39     2.73
 
 --- Kết quả cho Qwen2.5 (Sau Post-Process) ---
 ROUGE-1: 47.85
