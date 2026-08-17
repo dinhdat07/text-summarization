@@ -62,9 +62,21 @@ def compute_metrics(prediction: str, reference: str) -> dict:
     }
 
 
+import concurrent.futures
+
 def compute_all_metrics(predictions: dict, reference: str) -> dict:
-    """Compute metrics for multiple model predictions against one reference."""
+    """Compute metrics for multiple model predictions against one reference concurrently."""
     results = {}
-    for model_name, pred_text in predictions.items():
-        results[model_name] = compute_metrics(pred_text, reference)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(predictions)) as executor:
+        future_to_name = {
+            executor.submit(compute_metrics, text, reference): name 
+            for name, text in predictions.items()
+        }
+        for future in concurrent.futures.as_completed(future_to_name):
+            name = future_to_name[future]
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                logger.error(f"Metrics computation for {name} generated an exception: {exc}")
+                results[name] = {"rouge1": 0, "rouge2": 0, "rougeL": 0, "bleu": 0, "bertscore": 0}
     return results

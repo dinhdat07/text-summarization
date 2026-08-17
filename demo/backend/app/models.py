@@ -154,9 +154,21 @@ def generate_summary(model_name: str, text: str) -> str:
     return summary
 
 
+import concurrent.futures
+
 def generate_all(text: str) -> dict:
-    """Run inference on all loaded models."""
+    """Run inference on all loaded models concurrently."""
     results = {}
-    for name in _available_models:
-        results[name] = generate_summary(name, text)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(_available_models)) as executor:
+        future_to_name = {
+            executor.submit(generate_summary, name, text): name 
+            for name in _available_models
+        }
+        for future in concurrent.futures.as_completed(future_to_name):
+            name = future_to_name[future]
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                logger.error(f"{name} generated an exception: {exc}")
+                results[name] = f"[Error: {exc}]"
     return results
