@@ -1,0 +1,316 @@
+\documentclass[11pt,a4paper]{article}
+
+% Hỗ trợ tiếng Việt trên cả pdfLaTeX, XeLaTeX và LuaLaTeX.
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T5]{fontenc}
+  \usepackage[vietnamese]{babel}
+  \usepackage{lmodern}
+\else
+  \usepackage{fontspec}
+  \usepackage{polyglossia}
+  \setdefaultlanguage{vietnamese}
+  \setmainfont{TeX Gyre Termes}
+\fi
+
+% Toán học và trình bày
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black,
+  pdftitle={Phân tích chuyên sâu kiến trúc Transformer và các cải tiến cho tóm tắt văn bản}
+}
+
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0.25\baselineskip}
+\setlength{\emergencystretch}{2em}
+\setlist[itemize]{leftmargin=2em,itemsep=0.35em,topsep=0.35em}
+\numberwithin{equation}{section}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\ind}{\mathbb{I}}
+\DeclareMathOperator{\RMS}{RMS}
+
+\title{\textbf{Phân tích chuyên sâu kiến trúc Transformer và các cải tiến cho bài toán tóm tắt văn bản}}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Báo cáo phân tích một lộ trình cải tiến tuần tự cho kiến trúc Transformer Encoder--Decoder trong bài toán tóm tắt văn bản, đặc biệt hướng đến dữ liệu tin tức tiếng Việt. Xuất phát từ mô hình cơ sở huấn luyện từ đầu, nghiên cứu lần lượt khảo sát các cấu phần RoPE, RMSNorm và SwiGLU; mở rộng năng lực mô hình bằng Weight Tying, HyperSphereNorm và Label Smoothing; bổ sung kiến trúc dẫn hướng thực thể ở lớp biên của Encoder; và kiểm soát lỗi lặp tại thời điểm suy diễn bằng GTF-Penalty. Cuối cùng, báo cáo phân tích nút cổ chai thông tin của Mamba so với cơ chế chú ý toàn cục của Transformer. Các cải tiến tập trung đồng thời vào hình học không gian biểu diễn, độ ổn định gradient, hiệu quả tham số, độ trung thực thực thể và chất lượng giải mã tự hồi quy.
+\end{abstract}
+
+\noindent\textbf{Từ khóa:} Transformer, tóm tắt văn bản, RoPE, RMSNorm, SwiGLU, Weight Tying, HyperSphereNorm, nhận dạng thực thể, GTF-Penalty, Mamba.
+
+\section{Giới thiệu}
+
+Tóm tắt văn bản trừu tượng là một bài toán chuỗi-sang-chuỗi (Seq2Seq) đòi hỏi mô hình vừa nắm bắt ngữ cảnh toàn cục, vừa sinh đầu ra ngắn gọn, mạch lạc và trung thực với văn bản nguồn. Transformer đã trở thành nền tảng chủ đạo của nhóm bài toán này nhờ khả năng mô hình hóa quan hệ xa bằng cơ chế chú ý. Tuy nhiên, khi mô hình được huấn luyện từ đầu trên tập dữ liệu quy mô nhỏ, chất lượng biểu diễn, độ ổn định tối ưu và khả năng kiểm soát lỗi sinh vẫn là những thách thức đáng kể.
+
+Báo cáo trình bày mô hình cơ sở và các hạn chế cố hữu, sau đó phân tích một chuỗi nâng cấp từ cấp độ phép toán lõi đến cấp độ kiến trúc và thuật toán giải mã. Mục tiêu tổng quát là cải thiện khả năng biểu diễn, bảo toàn tín hiệu thực thể thưa, giảm ảo giác và hạn chế lặp vòng mà vẫn kiểm soát được số lượng tham số cũng như chi phí phần cứng.
+
+\section{Phân tích kiến trúc và các cải tiến}
+
+\subsection{Transformer -- Mô hình cơ sở (Baseline Model) và hạn chế}
+
+\subsubsection{Cấu hình mô hình cơ sở}
+
+Kể từ khi được giới thiệu bởi Vaswani và cộng sự~\cite{vaswani2017attention}, kiến trúc Encoder--Decoder của Transformer đã trở thành tiêu chuẩn vàng cho các bài toán Seq2Seq. Mô hình cơ sở trong nghiên cứu này có độ sâu gồm 6 lớp Encoder và 6 lớp Decoder. Kích thước không gian biểu diễn được đặt là $d_{\text{model}}=512$, kích thước lớp ẩn Feed-Forward là $d_{\text{ff}}=2048$, và cơ chế Multi-Head Attention sử dụng $h=8$ đầu chú ý. Để tăng cường độ ổn định trong quá trình huấn luyện, chiến lược Pre-Norm (chuẩn hóa trước) được áp dụng.
+
+\subsubsection{Hạn chế kỹ thuật cố hữu}
+
+Mặc dù đạt được những thành công nhất định, mô hình huấn luyện từ đầu trên các tập dữ liệu nhỏ thường bộc lộ hai nhóm nhược điểm quan trọng:
+
+\begin{itemize}
+  \item \textbf{Suy giảm thứ hạng đại số (rank degeneracy) và biểu diễn dị hướng (anisotropy):} các vector nhúng có xu hướng co cụm trong một nón hẹp của không gian vector, làm giảm khả năng phân biệt ngữ nghĩa.
+  \item \textbf{Exposure bias và lỗi lặp vòng/ảo giác:} sự sai lệch giữa phân phối dữ liệu trong quá trình huấn luyện bằng Teacher Forcing và quá trình suy diễn bằng Auto-regressive Decoding khiến hệ thống dễ mắc kẹt trong các vòng lặp sinh từ kéo dài hoặc bịa đặt thông tin.
+\end{itemize}
+
+\subsubsection{Công thức toán học cốt lõi}
+
+Mã hóa vị trí tuyệt đối dạng sin--cos được xác định bởi
+\begin{align}
+PE_{(pos,2i)}
+  &= \sin\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right),
+  \label{eq:sin-pe}\\
+PE_{(pos,2i+1)}
+  &= \cos\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right).
+  \label{eq:cos-pe}
+\end{align}
+
+Phép chuẩn hóa lớp (Layer Normalization) có dạng
+\begin{equation}
+\operatorname{LayerNorm}(x)
+= \frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}\times\gamma+\beta.
+\label{eq:layernorm}
+\end{equation}
+
+Mạng nơ-ron truyền thẳng tiêu chuẩn sử dụng ReLU được biểu diễn bởi
+\begin{equation}
+\operatorname{FFN}_{\mathrm{ReLU}}(x)
+= \operatorname{ReLU}(x * W_1+b_1) * W_2+b_2.
+\label{eq:ffn-relu}
+\end{equation}
+
+\subsection{Nâng cấp cấu phần cốt lõi (Progressive Core Enhancements)}
+
+\subsubsection{Mục tiêu tối ưu hóa}
+
+Nhằm giải quyết các hạn chế của mô hình cơ sở, nghiên cứu đề xuất thay thế hệ thống tính toán lõi bằng các cấu trúc hiện đại được sử dụng trong những mô hình ngôn ngữ lớn như LLaMA~\cite{touvron2023llama} và PaLM~\cite{chowdhery2022palm}. Mục tiêu là tối ưu hóa không gian biểu diễn, duy trì luồng gradient trong mạng sâu và tăng hiệu quả xử lý trên phần cứng. Trong cấu hình mới, kích thước FFN được điều chỉnh thành $d_{\text{ff}}=1365$, xấp xỉ $\frac{2}{3}\times 2048$, nhằm cân bằng số lượng tham số khi SwiGLU làm tăng số ma trận trọng số.
+
+\subsubsection{Rotary Position Embedding (RoPE)}
+
+RoPE do Su và cộng sự~\cite{su2021roformer} đề xuất, tích hợp thông tin vị trí tương đối thông qua phép quay vector trong không gian phức. Không giống mã hóa tuyệt đối, RoPE bảo đảm rằng tích vô hướng giữa các vector Query và Key chỉ phụ thuộc vào khoảng cách tương đối giữa chúng, nhờ đó hỗ trợ mô hình ngoại suy tốt hơn với các chuỗi dài:
+\begin{equation}
+\left\langle f(q,m),f(k,n)\right\rangle
+=g(q,k,m-n).
+\label{eq:rope}
+\end{equation}
+
+\subsubsection{Root Mean Square Normalization (RMSNorm)}
+
+RMSNorm được giới thiệu bởi Zhang và Sennrich~\cite{zhang2019rmsnorm}. Phương pháp này loại bỏ thao tác trừ giá trị trung bình trong LayerNorm, qua đó giảm chi phí tính toán nhưng vẫn duy trì độ ổn định của gradient:
+\begin{equation}
+\operatorname{RMSNorm}(x)
+=\frac{x}{\RMS(x)}\cdot\gamma,
+\qquad
+\RMS(x)=\sqrt{\frac{1}{d}\sum_{i=1}^{d}x_i^2}.
+\label{eq:rmsnorm}
+\end{equation}
+
+\subsubsection{SwiGLU Activation}
+
+Dựa trên nghiên cứu của Shazeer~\cite{shazeer2020glu}, cổng tuyến tính SwiGLU giúp ngăn hiện tượng ``dying ReLU'' bằng cách cung cấp đường dẫn gradient trơn hơn nhờ hàm Swish. Vì vậy, mô hình có thể học các biểu diễn phức tạp và duy trì dòng gradient ở những lớp mạng sâu:
+\begin{equation}
+\operatorname{SwiGLU}(x)
+=\bigl(xW_1\odot\operatorname{Swish}(xW_2)\bigr)W_3.
+\label{eq:swiglu}
+\end{equation}
+
+\subsection{Mở rộng không gian và tối ưu tham số (Capacity Scaling \& Regularization)}
+
+\subsubsection{Tối ưu hóa tham số với Weight Tying}
+
+Được đề xuất bởi Press và Wolf~\cite{press2017using}, Weight Tying chia sẻ một ma trận trọng số giữa tầng nhúng đầu vào (Input Embedding) và tầng chiếu đầu ra (Output Projection). Trong cấu hình nghiên cứu, phương pháp này không chỉ làm cấu trúc biểu diễn đối xứng hơn mà còn giảm khoảng 30\% tổng số tham số, giải phóng đáng kể VRAM và cho phép tăng độ sâu mô hình từ 6 lên 11 lớp mà không gây lỗi tràn bộ nhớ (out-of-memory, OOM).
+
+\subsubsection{Cải tiến không gian hình học bằng HyperSphereNorm}
+
+Trong các kiến trúc học đối chiếu và biểu diễn từ vựng, vector thường chịu sự thoái hóa phân phối. Chuẩn hóa siêu cầu (HyperSphereNorm/Hyperspherical Linear) buộc mô hình phân tách biểu diễn dựa trên hướng, tức độ tương đồng cosine, thay vì dựa trên độ lớn. Cơ chế này neo giữ hình học của không gian ngữ nghĩa ổn định, từ đó hạn chế sự nhầm lẫn thực thể và hiện tượng ảo giác:
+\begin{equation}
+\operatorname{logits}
+=\gamma\cdot\frac{z}{\lvert z\rvert}
+\cdot\left(\frac{W}{\lvert W\rvert}\right)^{\!\top}.
+\label{eq:hypersphere}
+\end{equation}
+Trong đó, $\gamma$ là tham số tỷ lệ học được và được kẹp trong khoảng $[0.1,50]$ để kiểm soát nhiệt độ của phân phối softmax.
+
+\subsubsection{Làm mịn nhãn (Label Smoothing)}
+
+Để ngăn mô hình trở nên quá tự tin và dẫn đến overfitting, Label Smoothing~\cite{szegedy2016rethinking} phân bổ một lượng xác suất nhỏ $\epsilon$ cho các nhãn không chính xác:
+\begin{equation}
+y_{\text{smooth}}
+=(1-\epsilon)y_{\text{one-hot}}+\epsilon/V.
+\label{eq:label-smoothing}
+\end{equation}
+Trong nghiên cứu này, hệ số nhiễu là $\epsilon=0.1$ và $V$ là kích thước từ vựng.
+
+\subsection{NER -- Kiến trúc dẫn hướng thực thể (Entity Guided Architecture)}
+
+\subsubsection{Vấn đề ảo giác và mục tiêu kỹ thuật}
+
+Trong bài toán tóm tắt văn bản, việc sinh sai danh từ riêng, ngày tháng hoặc số liệu là một lỗi nghiêm trọng. Để khắc phục, nghiên cứu đề xuất một cấu phần bổ trợ đầu vào tại lớp Encoder cuối cùng, được xem như một phần mở rộng tiền xử lý ở lớp biên (Boundary-Layer Pre-processing Extension). Lớp này đóng vai trò bộ lọc chặng cuối, có nhiệm vụ tiêm trực tiếp tri thức về vị trí thực thể vào biểu diễn ngay trước khi dữ liệu đi qua lớp Attention cuối cùng. Nhờ đó, luồng Cross-Attention của Decoder nhận được tín hiệu rõ ràng hơn về các thực thể thưa.
+
+\subsubsection{Cấu hình và công thức toán học}
+
+Mô hình được mở rộng lên 11 lớp Encoder và 11 lớp Decoder, đồng thời tích hợp Weight Tying, HyperSphereNorm và Label Smoothing. Tại lớp Encoder thứ 11, một bộ phân loại tuyến tính học cách dự đoán xác suất một token có phải là thực thể hay không. Thành phần dự đoán thực thể được huấn luyện song song bằng hàm phạt Binary Cross Entropy (BCE):
+\begin{equation}
+p=\sigma\bigl(\operatorname{Linear}(x)\bigr)
+\in\R^{L\times 1}.
+\label{eq:entity-predictor}
+\end{equation}
+
+Tín hiệu xác suất $p$ tiếp tục được biến đổi tuyến tính rồi cộng trực tiếp vào biểu diễn ẩn thông qua một kết nối phần dư, đóng vai trò như một ``prompt'' dẫn hướng thực thể:
+\begin{equation}
+x_{\text{injected}}=x+\operatorname{Linear}(p).
+\label{eq:ner-injection}
+\end{equation}
+
+\subsection{Kiểm soát lặp tại thời điểm suy diễn (GTF-Penalty)}
+
+\subsubsection{Cơ sở lý thuyết về suy diễn tự hồi quy}
+
+Transformer sinh văn bản theo cơ chế tự hồi quy. Do exposure bias, khi mô hình sinh một từ lặp lại, xác suất của từ đó ở các bước kế tiếp có thể bị khuếch đại và dẫn đến suy thoái đầu ra hoặc lặp vòng vô hạn. GTF-Penalty, một phương pháp điều chuẩn giải mã tại thời điểm suy diễn, can thiệp trực tiếp vào phân phối xác suất trong pha giải mã mà không thay đổi hàm mất mát khi huấn luyện.
+
+\subsubsection{Thuật toán và chi phí phần cứng}
+
+Giải pháp can thiệp tại tầng logits đầu ra của Decoder với chi phí tính toán rất thấp, $O(1)$ tại mỗi bước sinh. Thay vì áp dụng một mức phạt tĩnh như Repetition Penalty truyền thống, GTF-Penalty xác định mức phạt dựa trên tần suất gốc của từ vựng. Danh từ riêng và số liệu có tần suất thấp sẽ bị phạt mạnh nếu lặp lại, trong khi các hư từ và từ nối được giữ nguyên biên độ để duy trì tính trôi chảy.
+
+\subsubsection{Công thức toán học định lượng}
+
+Tensor phạt tần suất từ vựng là một ánh xạ nghịch đảo dựa trên logarit của số lần xuất hiện trong tập huấn luyện. Với $\alpha=1.0$ là hệ số kiểm soát, ta có
+\begin{equation}
+P_v=\alpha\times\left(
+1-\frac{\log\bigl(C_v^{\text{train}}\bigr)}
+{\log\bigl(C_{\max}^{\text{train}}\bigr)}
+\right).
+\label{eq:frequency-penalty}
+\end{equation}
+
+Tại thời điểm sinh, logits của từ vựng $v$ được điều chỉnh bằng mức phạt động tích lũy theo số lần từ đó đã xuất hiện trong chuỗi hiện tại, $C_v^{\text{curr}}$, kết hợp với hệ số phạt cơ bản $b=0.6$:
+\begin{equation}
+\operatorname{logits}'_v
+=\operatorname{logits}_v-\left(
+P_v\times C_v^{\text{curr}}
++\ind\bigl(C_v^{\text{curr}}>0\bigr)\times b
+\right).
+\label{eq:logits-modification}
+\end{equation}
+
+\subsection{Phân tích kiến trúc nút cổ chai: Mamba so với Transformer}
+
+Trong bối cảnh các mô hình không gian trạng thái chọn lọc (Selective State Spaces, SSMs) như Mamba~\cite{gu2023mamba} đang nổi lên, nghiên cứu đã thực nghiệm và phân tích nguyên nhân khiến Mamba kém hiệu quả hơn trong bài toán tóm tắt tin tức tiếng Việt có độ dài trung bình.
+
+\subsubsection{Bản chất toán học của nút cổ chai trạng thái}
+
+Dù cơ chế tiêm Entity Prompt đã được tích hợp trên toàn bộ 10 lớp Encoder, quá trình quét tuyến tính (Selective Scanning Phase) của Mamba vẫn phải liên tục nén lịch sử ngữ cảnh vào một vector không gian ẩn có kích thước cố định:
+\begin{equation}
+h_t=\bar{A}_t h_{t-1}+\bar{B}_t x_t.
+\label{eq:mamba-state}
+\end{equation}
+
+\subsubsection{Sự bốc hơi của thực thể}
+
+Trong các văn bản tin tức có độ dài không quá 1024 token, danh từ riêng và số liệu xuất hiện rất thưa. Các phép toán cập nhật tuyến tính liên tục qua nhiều lớp chịu áp lực nén, dẫn đến xu hướng ghi đè hoặc xóa nhòa tín hiệu thực thể để dành năng lực biểu diễn cho các đặc trưng ngữ pháp cục bộ mạnh hơn. Vì vậy, tín hiệu Entity Prompt có thể suy giảm trước khi được sử dụng để sinh tóm tắt.
+
+\subsubsection{Sự ưu việt của Transformer}
+
+Trái với tính tuần tự của Mamba, đồ thị liên kết toàn cục (Global Attention Graph) của Transformer kết nối trực tiếp mỗi Query với toàn bộ token Key trong ngữ cảnh mà không phải đi qua một trạng thái trung gian duy nhất. Bước nhảy thông tin giữa hai token nhờ đó luôn ở mức $O(1)$ theo độ dài đường truyền trên đồ thị chú ý. Đặc tính này bảo toàn tốt hơn tín hiệu của các thực thể thưa và mang lại độ chính xác cao hơn cho tác vụ tóm tắt trừu tượng trong bối cảnh được khảo sát.
+
+\section{Kết quả và Bàn luận}
+\label{sec:results}
+
+\subsection{Đánh giá Tổng thể trên Tập Kiểm thử Chung}
+
+Bảng~\ref{tab:general_eval} trình bày kết quả đánh giá trên toàn bộ 4,000 bài báo của tập kiểm thử chung (General Set).
+
+\begin{table*}[htbp]
+\centering
+\caption{Kết quả đánh giá trên tập kiểm thử chung (General Set, $n=4{,}000$). Giá trị in đậm biểu thị kết quả tốt nhất trên từng cột.}
+\label{tab:general_eval}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{ROUGE-Lsum} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
+\midrule
+Baseline Transformer
+  & 47.32 & 12.23 & 28.14 & 28.14 & 7.57 & 71.08 \\
+Improved Core (RoPE+RMSNorm)
+  & 48.18 & 13.42 & 29.13 & 29.13 & 6.34 & 71.41 \\
+Extended (11L+WeightTying)
+  & 49.05 & 13.61 & 29.21 & 29.21 & \textbf{7.82} & 71.38 \\
+Entity Guided
+  & 47.15 & 13.63 & 28.74 & 28.74 & 5.03 & 71.03 \\
+Entity Guided + GTF-Penalty
+  & \textbf{51.96} & \textbf{16.56} & \textbf{30.48} & \textbf{30.48} & 7.76 & \textbf{72.96} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+Entity Guided + GTF-Penalty đạt kết quả cao nhất trên ROUGE-1, ROUGE-2, ROUGE-L, ROUGE-Lsum và BERTScore-F1, lần lượt là 51.96, 16.56, 30.48, 30.48 và 72.96. So với Entity Guided, phương pháp này cải thiện 4.81 điểm ROUGE-1, 2.93 điểm ROUGE-2, 1.74 điểm ROUGE-L và ROUGE-Lsum, đồng thời tăng 1.93 điểm BERTScore-F1. Đối với BLEU, cấu hình Extended (11L+WeightTying) đạt kết quả cao nhất với 7.82, nhỉnh hơn mức 7.76 của Entity Guided + GTF-Penalty.
+
+\subsection{Bàn luận về các cải tiến kiến trúc}
+
+Các cải tiến được tổ chức theo ba tầng bổ trợ lẫn nhau. Ở tầng phép toán lõi, RoPE, RMSNorm và SwiGLU cải thiện cách mô hình mã hóa vị trí, chuẩn hóa kích hoạt và truyền gradient. Ở tầng năng lực biểu diễn, Weight Tying giải phóng ngân sách tham số để tăng độ sâu, trong khi HyperSphereNorm và Label Smoothing kiểm soát hình học của biểu diễn và độ tự tin của đầu ra. Ở tầng trung thực nội dung, kiến trúc dẫn hướng thực thể làm nổi bật các token quan trọng trong Encoder, còn GTF-Penalty điều chỉnh trực tiếp hành vi lặp của Decoder tại thời điểm suy diễn.
+
+Chuỗi cải tiến này cũng cho thấy chất lượng tóm tắt không chỉ phụ thuộc vào kích thước mô hình. Hiệu quả tham số, cấu trúc đường truyền thông tin và chiến lược giải mã có thể ảnh hưởng trực tiếp đến khả năng bảo toàn thực thể. So sánh với Mamba nhấn mạnh rằng cơ chế nén trạng thái cố định có thể trở thành nút cổ chai đối với tín hiệu thưa, trong khi chú ý toàn cục tạo đường truy cập trực tiếp từ Decoder đến các vị trí nguồn có liên quan.
+
+\section{Kết luận}
+
+Báo cáo đã trình bày đầy đủ lộ trình từ Transformer cơ sở 6 lớp đến kiến trúc 11 lớp được tăng cường bằng RoPE, RMSNorm, SwiGLU, Weight Tying, HyperSphereNorm, Label Smoothing và cơ chế dẫn hướng thực thể. GTF-Penalty bổ sung một lớp kiểm soát giải mã có chi phí thấp nhằm hạn chế lặp vòng mà không làm thay đổi quá trình huấn luyện. Phân tích Mamba--Transformer cho thấy khả năng truy cập trực tiếp đến toàn bộ ngữ cảnh của Global Attention đặc biệt phù hợp với yêu cầu bảo toàn danh từ riêng và số liệu trong tóm tắt tin tức. Tổng thể, thiết kế đề xuất hướng tới sự cân bằng giữa năng lực biểu diễn, hiệu quả tài nguyên, độ trôi chảy và tính trung thực của văn bản sinh.
+
+\begin{thebibliography}{99}
+
+\bibitem{vaswani2017attention}
+A. Vaswani et al., ``Attention Is All You Need,'' in \emph{Advances in Neural Information Processing Systems}, vol.~30, 2017.
+
+\bibitem{touvron2023llama}
+H. Touvron et al., ``LLaMA: Open and Efficient Foundation Language Models,'' \emph{arXiv preprint arXiv:2302.13971}, 2023.
+
+\bibitem{chowdhery2022palm}
+A. Chowdhery et al., ``PaLM: Scaling Language Modeling with Pathways,'' \emph{arXiv:2204.02311}, 2022.
+
+\bibitem{su2021roformer}
+J. Su et al., ``RoFormer: Enhanced Transformer with Rotary Position Embedding,'' \emph{arXiv preprint arXiv:2104.09864}, 2021.
+
+\bibitem{zhang2019rmsnorm}
+B. Zhang and R. Sennrich, ``Root Mean Square Layer Normalization,'' in \emph{Advances in Neural Information Processing Systems}, vol.~32, 2019.
+
+\bibitem{shazeer2020glu}
+N. Shazeer, ``GLU Variants Improve Transformer,'' \emph{arXiv preprint arXiv:2002.05202}, 2020.
+
+\bibitem{press2017using}
+O. Press and L. Wolf, ``Using the Output Embedding to Improve Language Models,'' in \emph{Proceedings of the 15th Conference of the European Chapter of the Association for Computational Linguistics}, 2017, pp.~157--163.
+
+\bibitem{szegedy2016rethinking}
+C. Szegedy et al., ``Rethinking the Inception Architecture for Computer Vision,'' in \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition}, 2016, pp.~2818--2826.
+
+\bibitem{gu2023mamba}
+A. Gu and T. Dao, ``Mamba: Linear-Time Sequence Modeling with Selective State Spaces,'' \emph{arXiv preprint arXiv:2312.00752}, 2023.
+
+\end{thebibliography}
+
+\end{document}

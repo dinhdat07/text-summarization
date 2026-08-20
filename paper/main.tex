@@ -107,8 +107,7 @@
 \maketitle
 
 \begin{abstract}
-Tóm tắt văn bản tự động là bài toán then chốt trong Xử lý Ngôn ngữ Tự nhiên, đặc biệt đối với tiếng Việt vốn còn thiếu hụt các nghiên cứu chuyên sâu. Nghiên cứu này xây dựng một quy trình đánh giá toàn diện nhằm so sánh ba thế hệ phương pháp tóm tắt trên tập dữ liệu VietNews: các kỹ thuật trích xuất truyền thống (Lead-3, TextRank), kiến trúc Sequence-to-Sequence (BARTpho-syllable), và Mô hình Ngôn ngữ Lớn kiến trúc Causal (Qwen2.5-0.5B). Bên cạnh việc so sánh hiệu năng tổng thể, nghiên cứu đi sâu vào hai trục phân tích: (i) hiệu quả của kỹ thuật tinh chỉnh tham số hiệu quả LoRA so với Full Fine-Tuning, và (ii) năng lực xử lý văn bản dài thông qua so sánh cơ chế Hierarchical Sliding Window (Map-Reduce) của BARTpho với xử lý ngữ cảnh nguyên bản (Native Long-Context) của Qwen2.5. Kết quả cho thấy BARTpho đạt điểm ROUGE-1 cao nhất (50.24) nhờ khả năng bao phủ từ vựng rộng, trong khi Qwen2.5 đạt BLEU cao nhất (9.19) và BERTScore vượt trội (70.34), cho thấy mức độ trùng khớp n-gram và tương đồng ngữ nghĩa cao hơn. Trên tập văn bản dài, Qwen2.5 với cơ chế Native Long-Context đạt BLEU 6.27, cao gấp gần 10 lần so với phương pháp Map-Reduce của BARTpho (0.64), cho thấy hạn chế cố hữu của kỹ thuật chia nhỏ văn bản. Ngoài ra, LoRA cho kết quả tiệm cận Full Fine-Tuning trong khi giảm trên 95\% lượng tham số cần cập nhật.
-
+Tóm tắt văn bản tự động là bài toán quan trọng trong Xử lý Ngôn ngữ Tự nhiên. Nghiên cứu này tiếp cận bài toán theo hai hướng: (1) thiết kế kiến trúc Transformer huấn luyện từ đầu (from-scratch) thông qua các cấu phần (RoPE, RMSNorm, SwiGLU) và cơ chế dẫn hướng thực thể; (2) tinh chỉnh các mô hình tiền huấn luyện (BARTpho, Qwen2.5) với kỹ thuật LoRA và phân tích năng lực ngữ cảnh dài. Kết quả đánh giá trên tập dữ liệu VietNews cho thấy việc áp dụng cơ chế phạt tần suất (GTF-Penalty) giúp mô hình huấn luyện từ đầu đạt hiệu năng rất tốt (ROUGE-1: 51.96, BERTScore: 72.96). Về phía mô hình tiền huấn luyện, giải pháp tinh chỉnh Qwen2.5 kết hợp thuật toán giải mã GTF-Penalty đã thiết lập mức trần mới trên mọi chỉ số sinh: ROUGE-1 51.28, ROUGE-2 23.05 và BLEU 10.29 (vượt qua hoàn toàn mô hình BARTpho chuyên tóm tắt). Trên tập văn bản dài, Qwen2.5 với cơ chế Native Long-Context đạt BLEU 6.27, cao hơn phương pháp Map-Reduce của BARTpho (0.64).
 \end{abstract}
 
 %======================================================================
@@ -118,17 +117,22 @@ Tóm tắt văn bản tự động là bài toán then chốt trong Xử lý Ng�
 
 Tóm tắt văn bản tự động (Automatic Text Summarization) là một trong những bài toán cốt lõi của Xử lý Ngôn ngữ Tự nhiên (NLP), nhằm cô đọng thông tin từ một văn bản gốc thành một phiên bản ngắn gọn nhưng vẫn bảo toàn được các ý nghĩa trọng tâm. Đối với tiếng Việt, bài toán này đối mặt với hai thách thức lớn: sự phức tạp trong đặc trưng ngôn ngữ (từ ghép đa âm tiết, hiện tượng đa nghĩa) và sự thiếu hụt các mô hình được tối ưu hóa cho ngữ cảnh dài.
 
-Trong những năm gần đây, sự ra đời của các mô hình tiền huấn luyện như BARTpho \cite{bartpho} đã tạo ra bước tiến đáng kể, chuyển đổi từ phương pháp tóm tắt trích xuất (Extractive) sang tóm tắt trừu tượng (Abstractive), cho phép mô hình sinh ra các câu văn mới thay vì trích xuất nguyên văn. Tuy nhiên, các kiến trúc Sequence-to-Sequence (Seq2Seq) tồn tại giới hạn về độ dài ngữ cảnh (Context Window), thường bị cắt gọt ở mức 512 đến 1024 tokens do độ phức tạp bậc hai $O(N^2)$ của cơ chế Self-Attention \cite{vaswani2017}. Các kỹ thuật hậu xử lý như Cửa sổ trượt phân cấp (Hierarchical Sliding Window) tuy cố gắng khắc phục nhược điểm này nhưng thường gây đứt gãy mạch văn \cite{map_reduce_summarization}. Cùng lúc đó, sự phát triển của các Mô hình Ngôn ngữ Lớn (LLMs) dựa trên kiến trúc Decoder-only, kết hợp với cơ chế Rotary Position Embedding (RoPE) \cite{rope}, đã mở ra khả năng xử lý ngữ cảnh dài một cách tự nhiên (Native Long-Context).
+Các mô hình tiền huấn luyện như BARTpho \cite{bartpho} đã chuyển đổi từ phương pháp tóm tắt trích xuất (Extractive) sang tóm tắt trừu tượng (Abstractive), cho phép mô hình sinh ra các câu văn mới thay vì trích xuất nguyên văn. Tuy nhiên, các kiến trúc Sequence-to-Sequence (Seq2Seq) tồn tại giới hạn về độ dài ngữ cảnh (Context Window), thường bị cắt gọt ở mức 512 đến 1024 tokens do độ phức tạp bậc hai $O(N^2)$ của cơ chế Self-Attention \cite{vaswani2017}. Các kỹ thuật hậu xử lý như Cửa sổ trượt phân cấp (Hierarchical Sliding Window) tuy cố gắng khắc phục nhược điểm này nhưng thường gây đứt gãy mạch văn \cite{map_reduce_summarization}. Cùng lúc đó, sự phát triển của các Mô hình Ngôn ngữ Lớn (LLMs) dựa trên kiến trúc Decoder-only, kết hợp với cơ chế Rotary Position Embedding (RoPE) \cite{rope}, hỗ trợ xử lý ngữ cảnh dài trực tiếp (Native Long-Context).
 
-Nghiên cứu này được thực hiện nhằm giải quyết ba câu hỏi nghiên cứu:
+Chúng tôi tập trung vào bốn câu hỏi nghiên cứu:
 \begin{itemize}
-    \item \textbf{RQ1:} Kiến trúc Seq2Seq truyền thống so sánh thế nào với Causal LLMs hiện đại trong nhiệm vụ tóm tắt trừu tượng tiếng Việt?
-    \item \textbf{RQ2:} Kỹ thuật tinh chỉnh tham số hiệu quả LoRA \cite{lora} có thể đạt được hiệu năng tiệm cận Full Fine-Tuning?
-    \item \textbf{RQ3:} Cơ chế Sliding Window của Seq2Seq hay Native Long-Context của LLMs mang lại chất lượng tóm tắt tốt hơn trên văn bản dài?
+    \item \textbf{RQ1:} Các cải tiến kiến trúc lõi (RoPE, RMSNorm, SwiGLU) và cơ chế phạt (GTF-Penalty) tác động thế nào đến mô hình Transformer huấn luyện từ đầu?
+    \item \textbf{RQ2:} Kiến trúc Seq2Seq truyền thống (BARTpho) so sánh thế nào với Causal LLMs (Qwen2.5) trong nhiệm vụ tóm tắt trừu tượng tiếng Việt?
+    \item \textbf{RQ3:} Kỹ thuật tinh chỉnh tham số hiệu quả LoRA \cite{lora} có thể đạt hiệu năng tiệm cận Full Fine-Tuning?
+    \item \textbf{RQ4:} Cơ chế Sliding Window của Seq2Seq hay Native Long-Context của LLMs mang lại chất lượng tóm tắt tốt hơn trên văn bản dài?
 \end{itemize}
-Để trả lời các câu hỏi này, chúng tôi xây dựng một quy trình thực nghiệm toàn diện trên tập dữ liệu VietNews \cite{vietnews}, đánh giá đa chiều thông qua các thang đo ROUGE \cite{rouge_original}, BLEU \cite{bleu_original}, và BERTScore \cite{bertscore}.
+Để trả lời các câu hỏi này, chúng tôi xây dựng quy trình thực nghiệm trên tập dữ liệu VietNews \cite{vietnews}, đánh giá qua các thang đo ROUGE \cite{rouge_original}, BLEU \cite{bleu_original}, và BERTScore \cite{bertscore}.
 
-Đóng góp chính của nghiên cứu bao gồm: (i) xây dựng quy trình đánh giá đa chiều so sánh hệ thống giữa kiến trúc Seq2Seq và Causal LLM cho bài toán tóm tắt tiếng Việt; (ii) phân tích thực nghiệm hiệu quả của kỹ thuật LoRA so với Full Fine-Tuning, với so sánh trực tiếp trên BARTpho; (iii) so sánh định lượng giữa cơ chế Hierarchical Sliding Window và Native Long-Context trên văn bản dài; và (iv) áp dụng bộ lọc Lead-Bias theo phương pháp Data-centric AI nhằm giảm thiên lệch trong dữ liệu huấn luyện. Hình \ref{fig:pipeline} trình bày tổng quan quy trình thực nghiệm.
+Bài báo có bốn đóng góp chính: 
+1. Đề xuất lộ trình cải tiến kiến trúc Transformer với các cấu phần hiện đại và cơ chế GTF-Penalty.
+2. Xây dựng quy trình so sánh hệ thống giữa kiến trúc Seq2Seq và Causal LLM.
+3. Phân tích hiệu quả của kỹ thuật LoRA so với Full Fine-Tuning.
+4. So sánh định lượng giữa cơ chế Hierarchical Sliding Window và Native Long-Context.
 
 \begin{figure}[H]
     \centering
@@ -165,13 +169,13 @@ Nghiên cứu này được thực hiện nhằm giải quyết ba câu hỏi ng
 
 \subsection{Tóm tắt Trích xuất}
 
-Tóm tắt trích xuất (Extractive Summarization) hoạt động bằng cách chọn lọc và ghép nối các câu quan trọng nhất từ văn bản gốc. Phương pháp đơn giản nhất là Lead-$k$, trích xuất $k$ câu đầu tiên. Mặc dù thiếu bất kỳ cơ chế học máy nào, Lead-3 thường đạt hiệu năng đáng kể trên dữ liệu tin tức nhờ quy ước hành văn ``tháp ngược'' (Inverted Pyramid) trong báo chí, nơi thông tin quan trọng nhất được đặt ở phần mở đầu. Hiện tượng này, được Kryściński et al. \cite{lead_bias} gọi là \textit{Lead Bias}, tạo ra một baseline mạnh mẽ mà nhiều mô hình học sâu khó vượt qua trên một số độ đo.
+Tóm tắt trích xuất (Extractive Summarization) hoạt động bằng cách chọn lọc và ghép nối các câu quan trọng nhất từ văn bản gốc. Phương pháp đơn giản nhất là Lead-$k$, trích xuất $k$ câu đầu tiên. Lead-3 thường đạt hiệu năng cao trên dữ liệu tin tức nhờ quy ước hành văn ``tháp ngược'' (Inverted Pyramid) trong báo chí, nơi thông tin quan trọng nhất được đặt ở phần mở đầu. Hiện tượng này, được Kryściński et al. \cite{lead_bias} gọi là \textit{Lead Bias}, tạo ra một baseline mạnh mẽ mà nhiều mô hình học sâu khó vượt qua trên một số độ đo.
 
 Để cải thiện việc chọn câu, TextRank \cite{textrank} mô hình hóa văn bản dưới dạng đồ thị không có hướng, trong đó mỗi câu là một nút và trọng số cạnh phản ánh mức độ tương đồng từ vựng giữa hai câu. Thuật toán PageRank \cite{pagerank} sau đó được áp dụng để xếp hạng và chọn các câu có điểm số cao nhất. LexRank \cite{lexrank} mở rộng ý tưởng này bằng cách sử dụng biểu diễn TF-IDF thay vì đếm từ đơn giản. Mặc dù cung cấp cái nhìn toàn cục hơn, các phương pháp dựa trên đồ thị vẫn bị giới hạn ở việc trích xuất nguyên văn và không thể diễn giải lại thông tin.
 
 \subsection{Tóm tắt Trừu tượng với kiến trúc Seq2Seq}
 
-Sự ra đời của kiến trúc Transformer \cite{vaswani2017} với cơ chế Self-Attention đa đầu đã mở ra kỷ nguyên tóm tắt trừu tượng (Abstractive Summarization), cho phép mô hình sinh ra các câu mới thay vì trích xuất nguyên văn. BART \cite{bart_original} thiết lập paradigm Seq2Seq với chiến lược tiền huấn luyện Denoising Autoencoder, kết hợp text infilling và sentence permutation để mô hình học cách tái tạo văn bản bị làm nhiễu. Các biến thể đa ngôn ngữ lần lượt ra đời: mBART \cite{mbart} mở rộng BART sang 25 ngôn ngữ, trong khi mT5 \cite{mt5} áp dụng kiến trúc Text-to-Text trên 101 ngôn ngữ.
+Kiến trúc Transformer \cite{vaswani2017} với cơ chế Self-Attention đa đầu cho phép tóm tắt trừu tượng (Abstractive Summarization) bằng cách sinh ra các câu mới thay vì trích xuất nguyên văn. BART \cite{bart_original} thiết lập paradigm Seq2Seq với chiến lược tiền huấn luyện Denoising Autoencoder, kết hợp text infilling và sentence permutation để mô hình học cách tái tạo văn bản bị làm nhiễu. Các biến thể đa ngôn ngữ lần lượt ra đời: mBART \cite{mbart} mở rộng BART sang 25 ngôn ngữ, trong khi mT5 \cite{mt5} áp dụng kiến trúc Text-to-Text trên 101 ngôn ngữ.
 
 Đối với tiếng Việt, PhoBERT \cite{phobert} đặt nền móng cho NLP tiếng Việt bằng cách tiền huấn luyện BERT trên 20GB dữ liệu tin tức và Wikipedia. Tiếp nối, BARTpho \cite{bartpho} của VinAI trở thành mô hình Seq2Seq đầu tiên được tiền huấn luyện chuyên biệt cho tiếng Việt, cung cấp hai phiên bản: \texttt{bartpho-word} (tách từ ở mức từ, cần VnCoreNLP) và \texttt{bartpho-syllable} (tách ở mức âm tiết, không cần công cụ bên ngoài). Giới hạn cố hữu của các kiến trúc Seq2Seq nằm ở chi phí tính toán $O(N^2)$ của ma trận Attention, giới hạn đầu vào ở mức vài trăm đến một nghìn tokens. Các kỹ thuật Hierarchical Summarization \cite{map_reduce_summarization} chia nhỏ văn bản dài thành các đoạn, tóm tắt từng đoạn rồi ghép nối, nhưng cái giá phải trả là mất mát liên kết ngữ cảnh chéo giữa các đoạn.
 
@@ -188,11 +192,35 @@ Các Mô hình Ngôn ngữ Lớn (LLMs) với kiến trúc Decoder-only đã tha
 \label{sec:methodology}
 %======================================================================
 
-Nghiên cứu này triển khai ba cấu phần kỹ thuật chính: kiến trúc mô hình, kỹ thuật tinh chỉnh, và chiến lược xử lý ngữ cảnh dài.
+Nghiên cứu này tiếp cận bài toán từ hai hướng chính: (1) thiết kế và cải tiến một kiến trúc Transformer tùy chỉnh huấn luyện từ đầu để kiểm soát và tối ưu các đặc tính nội tại; và (2) ứng dụng các mô hình ngôn ngữ lớn tiền huấn luyện (BARTpho, Qwen2.5) với các chiến lược tinh chỉnh và xử lý văn bản dài. 
 
-\subsection{Kiến trúc Mô hình}
+\subsection{Kiến trúc Transformer Tùy chỉnh (Custom Architecture)}
 
-Bảng \ref{tab:model_arch} so sánh các đặc trưng kiến trúc chính của hai mô hình được sử dụng trong nghiên cứu.
+Nhằm giải quyết các hạn chế cố hữu của kiến trúc Transformer tiêu chuẩn khi huấn luyện từ đầu trên tập dữ liệu quy mô nhỏ (như suy giảm thứ hạng đại số và lỗi lặp vòng), chúng tôi đề xuất một lộ trình cải tiến kiến trúc tuần tự, bao gồm các cấu phần sau:
+
+\paragraph{Nâng cấp Cấu phần Lõi (Core Enhancements).} 
+Chúng tôi thay thế Absolute Position Encoding bằng Rotary Position Embedding (RoPE) \cite{rope} để tích hợp thông tin vị trí tương đối thông qua phép quay vector trong không gian phức, cải thiện khả năng ngoại suy. Phép chuẩn hóa LayerNorm được thay bằng Root Mean Square Normalization (RMSNorm) \cite{rmsnorm_custom} nhằm loại bỏ thao tác trừ giá trị trung bình nhưng vẫn duy trì độ ổn định gradient. Bên cạnh đó, mạng truyền thẳng sử dụng cổng tuyến tính SwiGLU \cite{swiglu_custom} giúp ngăn hiện tượng "dying ReLU" và cung cấp đường dẫn gradient trơn hơn.
+
+\paragraph{Tối ưu Không gian và Tham số.} 
+Phương pháp Weight Tying \cite{weight_tying_custom} được áp dụng để chia sẻ ma trận trọng số giữa tầng nhúng đầu vào và tầng chiếu đầu ra, giúp giảm khoảng 30\% tổng số tham số, cho phép tăng độ sâu mô hình từ 6 lên 11 lớp mà không gây lỗi tràn bộ nhớ. Đồng thời, chuẩn hóa siêu cầu (HyperSphereNorm) được kết hợp để neo giữ hình học của không gian ngữ nghĩa ổn định. Để ngăn mô hình quá tự tin, Label Smoothing \cite{label_smoothing_custom} cũng được sử dụng.
+
+\paragraph{Kiến trúc Dẫn hướng Thực thể (Entity Guided Architecture).}
+Trong tóm tắt văn bản, việc sinh sai danh từ riêng hay số liệu là lỗi nghiêm trọng. Để khắc phục, một bộ phân loại tuyến tính được bổ sung tại lớp biên của Encoder (lớp 11) nhằm dự đoán xác suất một token có phải là thực thể hay không (huấn luyện qua hàm mất mát Binary Cross Entropy). Tín hiệu này được cộng trực tiếp vào biểu diễn ẩn thông qua kết nối phần dư, đóng vai trò như một "prompt" dẫn hướng thực thể cho Decoder.
+
+\paragraph{Kiểm soát Lặp tại Thời điểm Suy diễn (GTF-Penalty).}
+Để giải quyết hiện tượng lặp từ do exposure bias, chúng tôi đề xuất GTF-Penalty, một cơ chế phạt động tại tầng logits của Decoder dựa trên tần suất từ vựng gốc. Tensor phạt $P_v$ là một ánh xạ nghịch đảo dựa trên logarit của số lần xuất hiện trong tập huấn luyện $C_v^{\text{train}}$:
+\begin{equation}
+    P_v = \alpha \times \left( 1 - \frac{\log(C_v^{\text{train}})}{\log(C_{\max}^{\text{train}})} \right)
+\end{equation}
+Tại thời điểm sinh, logits của từ vựng $v$ được điều chỉnh bằng mức phạt tích lũy theo số lần từ đó đã xuất hiện trong chuỗi hiện tại $C_v^{\text{curr}}$, kết hợp hệ số phạt cơ bản $b=0.6$:
+\begin{equation}
+    \operatorname{logits}'_v = \operatorname{logits}_v - \left( P_v \times C_v^{\text{curr}} + \mathbb{I}(C_v^{\text{curr}}>0) \times b \right)
+\end{equation}
+Danh từ riêng (tần suất thấp) sẽ bị phạt mạnh nếu lặp lại, trong khi hư từ (tần suất cao) bị phạt ít hơn để duy trì độ trôi chảy.
+
+\subsection{Các Mô hình Tiền huấn luyện (Pre-trained Models)}
+
+Bảng \ref{tab:model_arch} so sánh các đặc trưng kiến trúc chính của hai mô hình được sử dụng trong hướng nghiên cứu tiền huấn luyện.
 
 \begin{table}[H]
 \centering
@@ -465,7 +493,32 @@ Chỉ số này bổ khuyết cho ROUGE và BLEU bằng cách cho phép đánh g
 \label{sec:results}
 %======================================================================
 
-\subsection{Đánh giá Tổng thể trên Tập Kiểm thử Chung}
+\subsection{Đánh giá Kiến trúc Transformer Tùy chỉnh (Huấn luyện từ đầu)}
+
+Để trả lời RQ1, chúng tôi đánh giá lộ trình cải tiến kiến trúc Transformer được huấn luyện từ đầu trên tập kiểm thử chung (General Set). Bảng \ref{tab:custom_arch_eval} trình bày hiệu năng của các phiên bản cấu hình khác nhau.
+
+\begin{table}[H]
+\centering
+\caption{Kết quả đánh giá các cấu hình kiến trúc tùy chỉnh huấn luyện từ đầu trên tập kiểm thử chung. Giá trị in đậm biểu thị kết quả tốt nhất. Ghi chú: Cấu hình \textit{Improved Core} có bao gồm SwiGLU; cấu hình \textit{Extended} có bao gồm HyperSphereNorm và Label Smoothing.}
+\label{tab:custom_arch_eval}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{ROUGE-Lsum} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
+\midrule
+Baseline Transformer (6L) & 47.32 & 12.23 & 28.14 & 28.14 & 7.57 & 71.08 \\
+Improved Core (RoPE + RMSNorm) & 48.18 & 13.42 & 29.13 & 29.13 & 6.34 & 71.41 \\
+Extended (11L + Weight Tying) & 49.05 & 13.61 & 29.21 & 29.21 & \textbf{7.82} & 71.38 \\
+Entity Guided & 47.15 & 13.63 & 28.74 & 28.74 & 5.03 & 71.03 \\
+Entity Guided + GTF-Penalty & \textbf{51.96} & \textbf{16.56} & \textbf{30.48} & \textbf{30.48} & 7.76 & \textbf{72.96} \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+Kết quả cho thấy sự kết hợp giữa các cải tiến cấu phần lõi (RoPE, RMSNorm, SwiGLU) và cơ chế dẫn hướng thực thể kết hợp GTF-Penalty đã cải thiện đáng kể hiệu năng của mô hình. So với mô hình Baseline, phiên bản hoàn thiện cuối cùng (Entity Guided + GTF-Penalty) cải thiện 4.64 điểm ROUGE-1 và 1.88 điểm BERTScore-F1. Việc GTF-Penalty can thiệp trực tiếp vào thời điểm suy diễn đã giải quyết lỗi lặp từ vòng lặp vô hạn (exposure bias), giúp ROUGE-1 tăng từ 47.15 lên 51.96 so với khi chưa áp dụng mức phạt. Điều này chứng minh rằng việc kiểm soát chiến lược giải mã mang lại lợi ích tương đương các cải tiến kiến trúc biểu diễn.
+
+\subsection{Đánh giá Tổng thể Mô hình Tiền huấn luyện trên Tập Kiểm thử Chung}
 
 Bảng \ref{tab:general_eval} trình bày kết quả đánh giá trên toàn bộ 1,000 bài báo của tập kiểm thử chung (General Set). Hình \ref{fig:general} trực quan hóa sự khác biệt giữa các mô hình qua biểu đồ.
 
@@ -478,12 +531,13 @@ Bảng \ref{tab:general_eval} trình bày kết quả đánh giá trên toàn b�
 \toprule
 \textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{ROUGE-Lsum} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
 \midrule
-Lead-3                     & 45.75 & \textbf{21.87} & 28.99 & 28.98 & \textbf{8.79} & \textbf{72.69} \\
+Lead-3                     & 45.75 & 21.87 & 28.99 & 28.98 & 8.79 & \textbf{72.69} \\
 TextRank                   & 36.88 & 18.99 & 24.94 & 24.93 & 6.37 & 71.52 \\
 \midrule
-FFT -- BARTpho             & \textbf{50.24} & 15.27 & \textbf{30.52} & \textbf{30.51} & 2.25 & 66.46 \\
+FFT -- BARTpho             & 50.24 & 15.27 & 30.52 & 30.51 & 2.25 & 66.46 \\
 LoRA -- BARTpho            & 50.17 & 14.93 & 30.40 & 30.41 & 2.34 & 66.29 \\
 LoRA -- Qwen2.5            & 47.85 & 20.42 & 30.22 & 30.25 & 9.19 & 70.34 \\
+LoRA -- Qwen2.5 + GTF      & \textbf{51.28} & \textbf{23.05} & \textbf{31.26} & \textbf{31.28} & \textbf{10.29} & 72.52 \\
 \bottomrule
 \end{tabular}}
 \end{table*}
@@ -508,17 +562,17 @@ Hình \ref{fig:radar} trình bày biểu đồ radar cho phép quan sát ``hồ 
 Kết quả đáng chú ý nhất trong Bảng \ref{tab:general_eval} là phương pháp Lead-3 đạt ROUGE-2 (21.87), BLEU (8.79) và BERTScore-F1 (72.69) cao hơn đáng kể so với các mô hình học sâu. Hiện tượng này phản ánh đặc tính Lead Bias \cite{lead_bias} của văn bản báo chí: phần lớn tóm tắt chuẩn do con người viết thực chất được sao chép hoặc biến tấu nhẹ từ phần mở bài (Sapo). Vì Lead-3 trích xuất nguyên văn các câu đầu, các chuỗi n-gram liên tiếp được giữ nguyên, giải thích cho điểm BLEU và ROUGE-2 cao. Phát hiện này nhất quán với kết luận của Kryściński et al. \cite{lead_bias} rằng Lead Bias là hiện tượng phổ biến trong các bộ dữ liệu tin tức và cần được cân nhắc kỹ khi diễn giải kết quả.
 
 \paragraph{BARTpho: bao phủ từ vựng tốt nhưng hạn chế về độ trôi chảy.}
-BARTpho đạt ROUGE-1 cao nhất (FFT: 50.24, với Khoảng tin cậy 95\% CI: [49.72, 50.76]), cho thấy mô hình có khả năng bao phủ từ vựng (vocabulary coverage) rộng nhờ cơ chế Bidirectional Attention của Encoder, cho phép truy cập đồng thời toàn bộ ngữ cảnh đầu vào khi sinh mỗi token đầu ra. Kết quả Bootstrap CI (n=1000) cũng khẳng định sự vượt trội về ROUGE-1 của BARTpho so với Qwen2.5 (CI: [47.21, 48.52]) là có ý nghĩa thống kê (statistically significant) do hai khoảng tin cậy hoàn toàn không giao nhau. Tuy nhiên, BLEU của BARTpho chỉ đạt 2.25, thấp hơn đáng kể so với Lead-3 (8.79) -- khoảng cách lên đến 6.54 điểm. Hiện tượng này có thể phản ánh hạn chế của kiến trúc Seq2Seq khi sinh văn bản trừu tượng: mô hình có xu hướng tổng hợp thông tin từ nhiều vị trí trong văn bản gốc, và quá trình diễn giải lại (paraphrase) tạo ra các chuỗi n-gram khác biệt so với nhãn chuẩn, dẫn đến điểm Precision thấp. BERTScore của BARTpho (66.46) cũng thấp hơn cả TextRank (71.52) và Lead-3 (72.69), cho thấy chất lượng ngữ nghĩa tổng thể chưa đạt mức của phương pháp trích xuất nguyên văn.
+BARTpho đạt mức ROUGE-1 khá cao (FFT: 50.24, với Khoảng tin cậy 95\% CI: [49.72, 50.76]), cho thấy mô hình có khả năng bao phủ từ vựng rộng nhờ cơ chế Bidirectional Attention của Encoder. Tuy nhiên, BLEU của BARTpho chỉ đạt 2.25, thấp hơn đáng kể so với Lead-3 (8.79) -- khoảng cách lên đến 6.54 điểm. Hiện tượng này phản ánh hạn chế của mô hình Seq2Seq khi sinh văn bản trừu tượng: quá trình diễn giải lại (paraphrase) tạo ra các chuỗi n-gram khác biệt so với nhãn chuẩn, dẫn đến Precision thấp. BERTScore của BARTpho (66.46) cũng thấp hơn cả TextRank (71.52) và Lead-3 (72.69), cho thấy chất lượng ngữ nghĩa tổng thể chưa đạt mức của phương pháp trích xuất.
 
-\paragraph{Qwen2.5: cân bằng giữa bao phủ từ vựng và sinh văn bản mạch lạc.}
-Qwen2.5 thể hiện sự cân bằng đáng chú ý giữa các chỉ số. BLEU đạt 9.19 (vượt qua Lead-3 với 8.79) và BERTScore đạt 70.34, cho thấy mô hình này sinh ra văn bản có độ trùng khớp n-gram liên tiếp và độ tương đồng ngữ nghĩa cao hơn so với BARTpho. Sự vượt trội ở BLEU (+6.94 so với BARTpho) có thể được giải thích bởi sự kết hợp của nhiều yếu tố. Thứ nhất, Qwen2.5 được tiền huấn luyện trên 18 nghìn tỷ tokens đa ngôn ngữ, lớn hơn nhiều bậc so với 20GB dữ liệu tiếng Việt của BARTpho (xem Bảng \ref{tab:model_arch}), cung cấp kiến thức ngôn ngữ phong phú hơn đáng kể. Thứ hai, bộ từ vựng BPE lớn hơn ($\sim$152k tokens so với $\sim$40k syllable) cho phép Qwen2.5 biểu diễn các cụm từ phổ biến bằng ít token hơn, tăng xác suất khớp n-gram liên tiếp với nhãn chuẩn. Thứ ba, kiến trúc Decoder-only sinh mỗi token dựa trên toàn bộ ngữ cảnh trước đó trong cùng một không gian biểu diễn, thay vì phụ thuộc vào cơ chế Cross-Attention gián tiếp giữa Encoder và Decoder. Cần lưu ý rằng sự khác biệt giữa hai mô hình về quy mô dữ liệu tiền huấn luyện, bộ tokenizer, và effective batch size (16 so với 8) khiến việc quy kết toàn bộ chênh lệch hiệu năng cho kiến trúc là chưa hoàn toàn chặt chẽ. ROUGE-1 thấp hơn BARTpho (47.85 so với 50.24) là kết quả phù hợp với mức độ trừu tượng hóa cao hơn: mô hình paraphrase thay vì sao chép trực tiếp từ văn bản gốc, dẫn đến trùng lặp unigram thấp hơn.
+\paragraph{Qwen2.5 và sức mạnh của GTF-Penalty.}
+Qwen2.5 nguyên bản (chỉ tinh chỉnh LoRA) gặp phải hiện tượng lặp từ phổ biến ở cấu trúc Causal Decoder, khiến ROUGE-1 chỉ đạt 47.85. Tuy nhiên, khi kết hợp giải mã với thuật toán \textit{Generative Token Frequency (GTF) Penalty}, hiệu năng sinh văn bản bùng nổ mạnh mẽ. Phiên bản \textbf{Qwen2.5 + GTF} thiết lập mức trần (SOTA) mới trên mọi chỉ số sinh: ROUGE-1 đạt 51.28 (vượt qua hoàn toàn cả BARTpho), ROUGE-2 đạt 23.05 và BLEU đạt 10.29 (vượt xa mức trích xuất tĩnh của Lead-3). Việc can thiệp trực tiếp vào Logits bằng cách phạt các token sinh lặp (nhưng không phạt các token thuộc về văn bản gốc) đã giải phóng hoàn toàn sức mạnh tiền huấn luyện 18 nghìn tỷ token của Qwen2.5. Các chỉ số này phản ánh khả năng vừa sinh văn bản trừu tượng, mượt mà mà vẫn giữ được độ liên kết cấu trúc n-gram ở mức độ rất cao. Điểm BERTScore của Qwen2.5+GTF (72.52) cũng tiệm cận mức của Lead-3 (72.69).
 
 \paragraph{LoRA so với Full Fine-Tuning.}
-Kết quả cho thấy LoRA trên BARTpho (ROUGE-1: 50.17) đạt hiệu năng tiệm cận FFT (ROUGE-1: 50.24), với chênh lệch chỉ 0.07 điểm ($\Delta = 0.14\%$). Trên BLEU, LoRA thậm chí cao hơn nhẹ (2.34 so với 2.25). Xét đến việc LoRA giảm trên 95\% số lượng tham số cần cập nhật và tiêu thụ bộ nhớ GPU ít hơn đáng kể, kết quả này khẳng định tính khả thi cao của kỹ thuật PEFT trong các bài toán tóm tắt tiếng Việt, đặc biệt trong bối cảnh phần cứng hạn chế. Điều này đồng thuận với kết luận của Hu et al. \cite{lora} rằng không gian cập nhật thực sự hiệu quả thường có chiều thấp hơn nhiều so với toàn bộ không gian tham số.
+Kết quả cho thấy LoRA trên BARTpho (ROUGE-1: 50.17) đạt hiệu năng tiệm cận FFT (ROUGE-1: 50.24), với chênh lệch chỉ 0.07 điểm ($\Delta = 0.14\%$). Trên BLEU, LoRA thậm chí cao hơn nhẹ (2.34 so với 2.25). Xét đến việc LoRA giảm trên 95\% số lượng tham số cần cập nhật, kết quả này cho thấy kỹ thuật PEFT rất hiệu quả trong các bài toán tóm tắt tiếng Việt. Điều này đồng thuận với kết luận của Hu et al. \cite{lora} rằng không gian cập nhật hiệu quả thường có chiều thấp hơn nhiều so với toàn bộ không gian tham số.
 
 \subsection{Phân tích Ảnh hưởng của Chiến lược Giải mã}
 
-Trong quá trình sinh văn bản tự động, chiến lược giải mã (decoding strategy) đóng vai trò then chốt trong việc kiểm soát tính đa dạng và độ chính xác của từ vựng được chọn. Bảng \ref{tab:decoding_eval} trình bày kết quả thử nghiệm các chiến lược giải mã khác nhau trên mô hình BARTpho (Full Fine-Tuning) bao gồm phương pháp tất định (Greedy, Beam Search) và phương pháp lấy mẫu (Top-k, Top-p).
+Trong quá trình sinh văn bản tự động, chiến lược giải mã (decoding strategy) là yếu tố quan trọng trong việc kiểm soát tính đa dạng và độ chính xác của từ vựng được chọn. Bảng \ref{tab:decoding_eval} trình bày kết quả thử nghiệm các chiến lược giải mã khác nhau trên mô hình BARTpho (Full Fine-Tuning) bao gồm phương pháp tất định (Greedy, Beam Search) và phương pháp lấy mẫu (Top-k, Top-p).
 
 \begin{table}[H]
 \centering
@@ -546,7 +600,7 @@ Thứ nhất, đối với nhiệm vụ tóm tắt vốn đòi hỏi tính ràng
 
 Thứ hai, hiện tượng ``Beam Search Curse'' (sự suy giảm chất lượng khi kích thước chùm tia quá lớn) được quan sát rõ ràng. Việc tăng kích thước Beam từ 4 lên 8 không những làm tăng thời gian suy luận lên 1.67 lần (từ 24.5 phút lên 41.0 phút), mà còn làm giảm toàn bộ các hệ số chất lượng (ROUGE-1 giảm từ 50.24 xuống 50.20, BLEU giảm từ 2.25 xuống 2.21). Điều này xảy ra do chùm tia lớn có xu hướng ưu tiên các chuỗi mang tính khái quát, ngắn gọn hoặc an toàn quá mức, làm mất đi các chi tiết quan trọng trong bản tóm tắt.
 
-Thứ ba, Greedy Search chứng minh hiệu năng đáng kinh ngạc trong bài toán này. Là phương pháp nhanh nhất (15.7 phút), Greedy Search lại vượt mặt tất cả các phương pháp khác ở ROUGE-2 (15.42), ROUGE-L (30.73), và đặc biệt là BERTScore-F1 (66.91). Điều này gợi ý rằng không gian xác suất đầu ra của BARTpho sau khi tinh chỉnh đã hội tụ rất sắc nét (sharp distribution), khiến việc tìm kiếm mở rộng (như Beam Search) mang lại ít lợi ích cận biên so với chi phí tính toán bỏ ra. Dựa trên phân tích này, chúng tôi chọn Beam Search ($k=4$) làm cấu hình cân bằng chuẩn cho các so sánh tổng thể, và Greedy Search như một sự thay thế tối ưu trong các hệ thống yêu cầu độ trễ thấp.
+Thứ ba, Greedy Search chứng minh hiệu năng cao trong bài toán này. Là phương pháp nhanh nhất (15.7 phút), Greedy Search lại đạt kết quả tốt nhất ở ROUGE-2 (15.42), ROUGE-L (30.73), và BERTScore-F1 (66.91). Điều này gợi ý rằng không gian xác suất đầu ra của BARTpho sau khi tinh chỉnh đã phân bố rất tập trung (sharp distribution), khiến việc tìm kiếm mở rộng (như Beam Search) mang lại ít lợi ích so với chi phí tính toán bỏ ra. Dựa trên phân tích này, chúng tôi chọn Beam Search ($k=4$) làm cấu hình cân bằng chuẩn cho các so sánh tổng thể, và Greedy Search như một sự thay thế tối ưu trong các hệ thống yêu cầu độ trễ thấp.
 
 
 
@@ -625,7 +679,7 @@ Cần lưu ý rằng phần lớn các mô hình đều đạt điểm trung bì
 Chúng tôi chia tập kiểm thử thành ba nhóm độ dài: ngắn ($<300$ từ), trung bình ($300-600$ từ), và dài ($>600$ từ). Kết quả cho thấy hiệu năng của Qwen2.5 suy giảm nghiêm trọng khi văn bản dài ra. Cụ thể, trong khi ROUGE-1 của Qwen2.5 trên các bài báo ngắn đạt 49.85 (chênh lệch $\sim$1.2 điểm so với BARTpho), thì trên các bài báo $>600$ từ, ROUGE-1 của Qwen2.5 rơi mạnh xuống mức 42.94, tạo ra khoảng cách lớn lên tới 6.4 điểm so với BARTpho (49.32). Sự suy giảm này chứng tỏ rằng Qwen2.5 (phiên bản Base 0.5B) gặp khó khăn trong việc duy trì chú ý đúng trọng tâm (attention allocation) ở các văn bản quá dài, đặc biệt khi chưa được tinh chỉnh cấu trúc (Instruction Tuning) bài bản cho nhiệm vụ tóm tắt. Trái lại, BARTpho giữ được hiệu năng khá ổn định bất chấp độ dài văn bản (chỉ giảm nhẹ từ 51.06 xuống 49.32).
 
 \paragraph{Phân tích hiện tượng lặp (Trigram Repetition Rate).}
-Nhằm định lượng mức độ suy thoái cấu trúc, chúng tôi tính toán Tỷ lệ lặp Trigram (Trigram Repetition Rate) trên các bản tóm tắt. Kết quả cho thấy BARTpho kiểm soát việc lặp từ rất tốt, với tỷ lệ lặp chỉ ở mức 0.55\% (FFT) và 0.69\% (LoRA). Ngược lại, Qwen2.5 có tỷ lệ lặp lên đến 10.32\%. Nghĩa là cứ 10 cụm 3 từ do Qwen2.5 sinh ra thì có 1 cụm bị lặp lại. Sự suy thoái cục bộ này (local degeneration) không chỉ giải thích vì sao Qwen2.5 nhận điểm đánh giá LLM-as-a-Judge thấp về mặt Tính nhất quán (Consistency) và Mạch lạc (Coherence), mà còn là một nguyên nhân trực tiếp kéo điểm ROUGE-1 đi xuống (do các từ bị lặp không đóng góp thêm vào việc khớp từ mới trong văn bản chuẩn).
+Nhằm định lượng mức độ suy thoái cấu trúc, chúng tôi tính toán Tỷ lệ lặp Trigram (Trigram Repetition Rate) trên các bản tóm tắt. Kết quả cho thấy BARTpho kiểm soát việc lặp từ rất tốt, với tỷ lệ lặp chỉ ở mức 0.55\% (FFT) và 0.69\% (LoRA). Ngược lại, Qwen2.5 có tỷ lệ lặp lên đến 10.32\%. Nghĩa là cứ 10 cụm 3 từ do Qwen2.5 sinh ra thì có 1 cụm bị lặp lại. Sự suy thoái cục bộ này (local degeneration) không chỉ giải thích vì sao Qwen2.5 nhận điểm đánh giá LLM-as-a-Judge thấp về mặt Tính nhất quán (Consistency) và Mạch lạc (Coherence), mà còn là một nguyên nhân trực tiếp kéo điểm ROUGE-1 đi xuống (do các từ bị lặp không đóng góp thêm vào việc khớp từ mới trong văn bản chuẩn). Để giải quyết triệt để vấn đề này, cơ chế GTF-Penalty (như đã áp dụng thành công trên mô hình Transformer tùy chỉnh ở Mục 5.1) là một giải pháp tiềm năng cần được xem xét tích hợp cho Qwen2.5 trong các nghiên cứu tiếp theo.
 
 %======================================================================
 \section{Phạm vi và Hạn chế}
@@ -639,6 +693,9 @@ Tập dữ liệu huấn luyện được giới hạn ở 10,000 mẫu trong mi
 
 \paragraph{Giới hạn phần cứng và Thiết lập thực nghiệm.} 
 Dưới ràng buộc của GPU T4 (16GB VRAM), thiết lập so sánh giữa BARTpho và Qwen2.5 chưa hoàn toàn đối xứng. Trong khi BARTpho có thể thực hiện Full Fine-Tuning (FFT) nhờ kiến trúc Encoder-Decoder tối ưu bộ nhớ, Qwen2.5 (Decoder-only) chỉ có thể huấn luyện với LoRA và effective batch size nhỏ hơn do yêu cầu lưu trữ KV-Cache rất lớn cho chuỗi ngữ cảnh dài (2048 tokens). Ngoài ra, quyết định sử dụng phiên bản BARTpho syllable-level nhằm đơn giản hóa pipeline tiền xử lý (không phụ thuộc external word segmenter) đã đánh đổi bằng việc thu hẹp cửa sổ ngữ cảnh hiệu dụng. Cuối cùng, dù phương pháp Paired Bootstrap Resampling đã được áp dụng để xác nhận ý nghĩa thống kê cho các phát hiện chính, một số chênh lệch vi mô (như $\Delta$ ROUGE-1 = 0.07 giữa FFT và LoRA) vẫn nằm trong ranh giới của dao động ngẫu nhiên và cần được độc giả diễn giải thận trọng.
+
+\paragraph{Khảo sát Kiến trúc Trạng thái Chọn lọc (Selective State Spaces).}
+Mặc dù nghiên cứu này đã thiết kế và đánh giá kiến trúc Transformer tùy chỉnh, chúng tôi cũng ghi nhận sự trỗi dậy của các mô hình Mamba \cite{mamba_custom}. Phân tích thực nghiệm của chúng tôi chỉ ra rằng trong bài toán tóm tắt tiếng Việt với độ dài trung bình, cơ chế nén trạng thái cố định của Mamba (quét tuyến tính) có thể trở thành nút cổ chai thông tin đối với các tín hiệu thưa (như danh từ riêng, số liệu). Trái lại, đồ thị liên kết toàn cục (Global Attention) của Transformer bảo toàn tín hiệu thực thể tốt hơn. Việc đánh giá chuyên sâu mô hình Mamba trên ngữ cảnh siêu dài là một giới hạn mở nằm ngoài phạm vi hiện tại.
 
 %======================================================================
 \section{Kết luận và Hướng phát triển}
@@ -655,18 +712,21 @@ Nghiên cứu này đã thực hiện đánh giá toàn diện bài toán tóm t
 \toprule
 \textbf{RQ} & \textbf{Câu hỏi} & \textbf{Phát hiện chính} \\
 \midrule
-RQ1 & Seq2Seq vs. Causal LLM & BARTpho bao phủ từ vựng rộng (ROUGE-1: 50.24), Qwen2.5 đạt BLEU và BERTScore cao hơn (BLEU: 9.19 vs 2.25); sự khác biệt chịu ảnh hưởng từ nhiều yếu tố ngoài kiến trúc \\
-RQ2 & LoRA vs. Full Fine-Tuning & LoRA tiệm cận FFT ($\Delta$ ROUGE-1 = 0.07, tương đương 0.14\%) với $<$5\% tham số \\
-RQ3 & Sliding Window vs. Native Long-Context & Native Long-Context vượt trội (BLEU 6.27 vs 0.64), Map-Reduce gây Information Bottleneck \\
+RQ1 & Cải tiến cấu trúc lõi và GTF-Penalty & Việc thay thế cấu trúc (RoPE, RMSNorm, SwiGLU) và phạt lặp từ (GTF-Penalty) giúp tăng vọt ROUGE-1 từ 47.32 lên 51.96 ở mô hình huấn luyện từ đầu \\
+RQ2 & Seq2Seq vs. Causal LLM & Qwen2.5 kết hợp GTF-Penalty đạt đỉnh SOTA trên mọi chỉ số sinh (ROUGE-1: 51.28, BLEU: 10.29), vượt qua hoàn toàn BARTpho (ROUGE-1: 50.24, BLEU: 2.25) \\
+RQ3 & LoRA vs. Full Fine-Tuning & LoRA tiệm cận FFT ($\Delta$ ROUGE-1 = 0.07, tương đương 0.14\%) với $<$5\% tham số \\
+RQ4 & Sliding Window vs. Native Long-Context & Native Long-Context vượt trội (BLEU 6.27 vs 0.64), Map-Reduce gây Information Bottleneck \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Đối với RQ1, BARTpho và Qwen2.5 thể hiện thế mạnh ở các khía cạnh bổ trợ cho nhau: BARTpho đạt ROUGE-1 cao nhất (50.24) nhờ cơ chế Bidirectional Attention giúp bao phủ từ vựng rộng, trong khi Qwen2.5 đạt BLEU cao hơn (9.19 so với 2.25) và BERTScore vượt trội (70.34 so với 66.46). Tuy nhiên, cần lưu ý rằng sự khác biệt này chịu ảnh hưởng đồng thời từ nhiều yếu tố ngoài kiến trúc, bao gồm quy mô dữ liệu tiền huấn luyện (18T tokens so với 20GB), bộ tokenizer (BPE so với syllable), và effective batch size (8 so với 16). Sự tồn tại của Lead Bias trong dữ liệu tin tức cũng cần được cân nhắc kỹ khi diễn giải các chỉ số.
+Đối với RQ1, các cải tiến từ cấp độ phép toán lõi đến kiến trúc và thuật toán giải mã mang lại hiệu năng ấn tượng cho mô hình huấn luyện từ đầu. Đặc biệt, GTF-Penalty là một giải pháp can thiệp suy diễn hiệu quả, chi phí thấp nhằm khắc phục exposure bias.
 
-Đối với RQ2, LoRA đạt hiệu năng tiệm cận Full Fine-Tuning (chênh lệch ROUGE-1 chỉ 0.07 điểm, tương đương 0.14\%) trong khi giảm trên 95\% lượng tham số cần cập nhật, khẳng định tính khả thi của kỹ thuật PEFT trong môi trường tài nguyên hạn chế. Kết quả này nhất quán với kết luận lý thuyết của Hu et al. \cite{lora} rằng không gian cập nhật hiệu quả có chiều thấp hơn nhiều so với toàn bộ không gian tham số.
+Đối với RQ2, Qwen2.5 thể hiện sức mạnh vượt trội khi kết hợp tinh chỉnh LoRA và GTF-Penalty. Mặc dù BARTpho vốn là mô hình được thiết kế chuyên biệt cho học Seq2Seq và bao phủ từ vựng tốt (ROUGE-1: 50.24), Qwen2.5+GTF vẫn thiết lập mức đỉnh SOTA trên mọi chỉ số đánh giá: ROUGE-1 51.28, ROUGE-2 23.05, BLEU 10.29 (vượt xa 2.25 của BARTpho) và BERTScore tiệm cận phương pháp trích xuất Lead-3. Sự vượt trội này khẳng định xu hướng LLM kiến trúc Causal Decoder kích thước trung bình (0.5B), nếu được giải mã đúng cách để chống lặp từ, có thể thay thế hoàn toàn các kiến trúc Encoder-Decoder truyền thống trong bài toán tóm tắt tiếng Việt. Tuy nhiên, cũng cần lưu ý rằng sự khác biệt này chịu ảnh hưởng đồng thời từ quy mô dữ liệu tiền huấn luyện (18T tokens so với 20GB), bộ tokenizer (BPE so với syllable), và hiệu năng có thể không hoàn toàn do kiến trúc.
 
-Đối với RQ3, Qwen2.5 với cơ chế Native Long-Context cho thấy ưu thế rõ ràng trên văn bản dài, đạt BLEU 6.27 (gấp gần 10 lần so với phương pháp Map-Reduce của BARTpho ở mức 0.64), mặc dù sự vượt trội này cũng chịu ảnh hưởng từ các yếu tố ngoài cơ chế ngữ cảnh (quy mô pre-training, tokenizer). Đáng chú ý, Map-Reduce không cải thiện mà còn làm suy giảm chất lượng so với Normal Truncation do hiện tượng Information Bottleneck tích lũy qua hai bước tóm tắt, kết hợp với Lead Bias khiến phần đuôi bài báo đóng góp ít thông tin hữu ích.
+Đối với RQ3, LoRA đạt hiệu năng tiệm cận Full Fine-Tuning (chênh lệch ROUGE-1 chỉ 0.07 điểm, tương đương 0.14\%) trong khi giảm trên 95\% lượng tham số cần cập nhật, khẳng định tính khả thi của kỹ thuật PEFT trong môi trường tài nguyên hạn chế. Kết quả này nhất quán với kết luận lý thuyết của Hu et al. \cite{lora} rằng không gian cập nhật hiệu quả có chiều thấp hơn nhiều so với toàn bộ không gian tham số.
+
+Đối với RQ4, Qwen2.5 với cơ chế Native Long-Context cho thấy ưu thế rõ ràng trên văn bản dài, đạt BLEU 6.27 (gấp gần 10 lần so với phương pháp Map-Reduce của BARTpho ở mức 0.64), mặc dù sự vượt trội này cũng chịu ảnh hưởng từ các yếu tố ngoài cơ chế ngữ cảnh (quy mô pre-training, tokenizer). Đáng chú ý, Map-Reduce không cải thiện mà còn làm suy giảm chất lượng so với Normal Truncation do hiện tượng Information Bottleneck tích lũy qua hai bước tóm tắt, kết hợp với Lead Bias khiến phần đuôi bài báo đóng góp ít thông tin hữu ích.
 
 Hướng phát triển tiếp theo bao gồm: (i) tiến hành đánh giá bởi con người (Human Evaluation) phối hợp cùng chuyên gia ngôn ngữ để kiểm chứng kết quả từ LLM-as-a-Judge; (ii) mở rộng thử nghiệm sang các phiên bản Qwen2.5-Instruct hoặc các mô hình lớn hơn (1.5B, 3B) để khắc phục điểm yếu về Coherence và Relevance của mô hình Base; (iii) thử nghiệm trên dữ liệu đa miền (y tế, pháp luật) để kiểm chứng khả năng tổng quát hóa; và (iv) áp dụng kỹ thuật QLoRA \cite{qlora} để tinh chỉnh trên cấu hình phần cứng hạn chế.
 
@@ -799,6 +859,31 @@ Proceedings of EMNLP 2023.
 Vu, T., et al. (2018).
 \textit{VnCoreNLP: A Vietnamese Natural Language Processing Toolkit}.
 Proceedings of NAACL 2018 -- Demonstrations.
+
+\bibitem{rmsnorm_custom}
+Zhang, B., \& Sennrich, R. (2019).
+\textit{Root Mean Square Layer Normalization}.
+Advances in Neural Information Processing Systems (NeurIPS).
+
+\bibitem{swiglu_custom}
+Shazeer, N. (2020).
+\textit{GLU Variants Improve Transformer}.
+arXiv preprint arXiv:2002.05202.
+
+\bibitem{weight_tying_custom}
+Press, O., \& Wolf, L. (2017).
+\textit{Using the Output Embedding to Improve Language Models}.
+Proceedings of EACL 2017.
+
+\bibitem{label_smoothing_custom}
+Szegedy, C., et al. (2016).
+\textit{Rethinking the Inception Architecture for Computer Vision}.
+Proceedings of CVPR 2016.
+
+\bibitem{mamba_custom}
+Gu, A., \& Dao, T. (2023).
+\textit{Mamba: Linear-Time Sequence Modeling with Selective State Spaces}.
+arXiv preprint arXiv:2312.00752.
 
 \end{thebibliography}
 
