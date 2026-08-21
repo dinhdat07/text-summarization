@@ -107,7 +107,7 @@
 \maketitle
 
 \begin{abstract}
-Tóm tắt văn bản tự động là bài toán quan trọng trong Xử lý Ngôn ngữ Tự nhiên. Nghiên cứu này tiếp cận bài toán theo hai hướng: (1) thiết kế kiến trúc Transformer huấn luyện từ đầu (from-scratch) thông qua các cấu phần (RoPE, RMSNorm, SwiGLU) và cơ chế dẫn hướng thực thể; (2) tinh chỉnh các mô hình tiền huấn luyện (BARTpho, Qwen2.5) với kỹ thuật LoRA và phân tích năng lực ngữ cảnh dài. Kết quả đánh giá trên tập dữ liệu VietNews cho thấy việc áp dụng cơ chế phạt tần suất (GTF-Penalty) giúp mô hình huấn luyện từ đầu đạt hiệu năng rất tốt (ROUGE-1: 51.96, BERTScore: 72.96). Về phía mô hình tiền huấn luyện, giải pháp tinh chỉnh Qwen2.5 kết hợp thuật toán giải mã GTF-Penalty đã thiết lập mức trần mới trên mọi chỉ số sinh: ROUGE-1 51.28, ROUGE-2 23.05 và BLEU 10.29 (vượt qua hoàn toàn mô hình BARTpho chuyên tóm tắt). Trên tập văn bản dài, Qwen2.5 với cơ chế Native Long-Context đạt BLEU 6.27, cao hơn phương pháp Map-Reduce của BARTpho (0.64).
+Tóm tắt văn bản tự động là bài toán quan trọng trong Xử lý Ngôn ngữ Tự nhiên. Nghiên cứu này tiếp cận bài toán theo hai hướng: (1) thiết kế kiến trúc Transformer huấn luyện từ đầu (from-scratch) thông qua các cấu phần (RoPE, RMSNorm, SwiGLU) và cơ chế dẫn hướng thực thể; (2) tinh chỉnh các mô hình tiền huấn luyện (BARTpho, Qwen2.5) với kỹ thuật LoRA và phân tích năng lực ngữ cảnh dài. Kết quả đánh giá trên tập dữ liệu VietNews cho thấy việc áp dụng cơ chế phạt tần suất (GTF-Penalty) giúp mô hình huấn luyện từ đầu đạt hiệu năng rất tốt (ROUGE-1: 50.00, BERTScore: 70.88). Về phía mô hình tiền huấn luyện, giải pháp tinh chỉnh Qwen2.5 kết hợp thuật toán giải mã GTF-Penalty đã thiết lập mức trần mới trên mọi chỉ số sinh: ROUGE-1 51.28, ROUGE-2 23.05 và BLEU 10.29 (vượt qua hoàn toàn mô hình BARTpho chuyên tóm tắt). Trên tập văn bản dài, Qwen2.5 với cơ chế Native Long-Context đạt BLEU 6.27, cao hơn phương pháp Map-Reduce của BARTpho (0.64).
 \end{abstract}
 
 %======================================================================
@@ -133,6 +133,8 @@ Bài báo có bốn đóng góp chính:
 2. Xây dựng quy trình so sánh hệ thống giữa kiến trúc Seq2Seq và Causal LLM.
 3. Phân tích hiệu quả của kỹ thuật LoRA so với Full Fine-Tuning.
 4. So sánh định lượng giữa cơ chế Hierarchical Sliding Window và Native Long-Context.
+
+Hình \ref{fig:pipeline} minh họa tổng quan quy trình thực nghiệm của nghiên cứu này.
 
 \begin{figure}[H]
     \centering
@@ -474,7 +476,7 @@ Input truncation    & 1024 & 1024 / SW 512 & 2048 \\
 \begin{equation}
     \text{ROUGE-N} = \frac{\sum_{S_{ref}} \sum_{gram_n \in S_{ref}} Count_{match}(gram_n)}{\sum_{S_{ref}} \sum_{gram_n \in S_{ref}} Count(gram_n)}
 \end{equation}
-Chúng tôi báo cáo ROUGE-1 (unigram, phản ánh khả năng bao phủ từ vựng), ROUGE-2 (bigram, phản ánh mức độ khớp cụm từ liên tiếp), ROUGE-L và ROUGE-Lsum (dựa trên chuỗi con chung dài nhất -- Longest Common Subsequence, phản ánh cấu trúc câu).
+Chúng tôi báo cáo ROUGE-1 (unigram, phản ánh khả năng bao phủ từ vựng), ROUGE-2 (bigram, phản ánh mức độ khớp cụm từ liên tiếp), và ROUGE-L (dựa trên chuỗi con chung dài nhất -- Longest Common Subsequence, phản ánh cấu trúc câu).
 
 \textbf{BLEU-4} (Bilingual Evaluation Understudy) \cite{bleu_original} tập trung vào Precision của n-gram, kèm hình phạt độ dài (Brevity Penalty) để phạt các bản tóm tắt quá ngắn:
 \begin{equation}
@@ -502,21 +504,21 @@ Chỉ số này bổ khuyết cho ROUGE và BLEU bằng cách cho phép đánh g
 \caption{Kết quả đánh giá các cấu hình kiến trúc tùy chỉnh huấn luyện từ đầu trên tập kiểm thử chung. Giá trị in đậm biểu thị kết quả tốt nhất. Ghi chú: Cấu hình \textit{Improved Core} có bao gồm SwiGLU; cấu hình \textit{Extended} có bao gồm HyperSphereNorm và Label Smoothing.}
 \label{tab:custom_arch_eval}
 \resizebox{\textwidth}{!}{
-\begin{tabular}{@{}lcccccc@{}}
+\begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{ROUGE-Lsum} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
+\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
 \midrule
-Baseline Transformer (6L) & 47.32 & 12.23 & 28.14 & 28.14 & 7.57 & 71.08 \\
-Improved Core (RoPE + RMSNorm) & 48.18 & 13.42 & 29.13 & 29.13 & 6.34 & 71.41 \\
-Extended (11L + Weight Tying) & 49.05 & 13.61 & 29.21 & 29.21 & \textbf{7.82} & 71.38 \\
-Entity Guided & 47.15 & 13.63 & 28.74 & 28.74 & 5.03 & 71.03 \\
-Entity Guided + GTF-Penalty & \textbf{51.96} & \textbf{16.56} & \textbf{30.48} & \textbf{30.48} & 7.76 & \textbf{72.96} \\
+Baseline Transformer (6L) & 34.37 & 8.05 & 22.13 & 0.52 & 65.08 \\
+Improved Core (RoPE + RMSNorm) & 46.00 & 10.46 & 27.59 & 1.82 & 68.99 \\
+Extended (11L + Weight Tying) & 47.30 & 12.84 & 28.97 & 2.26 & 70.15 \\
+Entity Guided & 48.79 & 13.19 & 29.50 & 2.54 & 70.34 \\
+Entity Guided + GTF-Penalty & \textbf{50.00} & \textbf{14.01} & \textbf{29.74} & \textbf{2.57} & \textbf{70.88} \\
 \bottomrule
 \end{tabular}
 }
 \end{table}
 
-Kết quả cho thấy sự kết hợp giữa các cải tiến cấu phần lõi (RoPE, RMSNorm, SwiGLU) và cơ chế dẫn hướng thực thể kết hợp GTF-Penalty đã cải thiện đáng kể hiệu năng của mô hình. So với mô hình Baseline, phiên bản hoàn thiện cuối cùng (Entity Guided + GTF-Penalty) cải thiện 4.64 điểm ROUGE-1 và 1.88 điểm BERTScore-F1. Việc GTF-Penalty can thiệp trực tiếp vào thời điểm suy diễn đã giải quyết lỗi lặp từ vòng lặp vô hạn (exposure bias), giúp ROUGE-1 tăng từ 47.15 lên 51.96 so với khi chưa áp dụng mức phạt. Điều này chứng minh rằng việc kiểm soát chiến lược giải mã mang lại lợi ích tương đương các cải tiến kiến trúc biểu diễn.
+Kết quả cho thấy sự kết hợp giữa các cải tiến cấu phần lõi (RoPE, RMSNorm, SwiGLU) và cơ chế dẫn hướng thực thể kết hợp GTF-Penalty đã cải thiện đáng kể hiệu năng của mô hình. So với mô hình Baseline, phiên bản hoàn thiện cuối cùng (Entity Guided + GTF-Penalty) cải thiện 15.63 điểm ROUGE-1 và 5.80 điểm BERTScore-F1. Việc GTF-Penalty can thiệp trực tiếp vào thời điểm suy diễn đã giải quyết lỗi lặp từ vòng lặp vô hạn (exposure bias), giúp ROUGE-1 tăng từ 48.79 lên 50.00 so với khi chưa áp dụng mức phạt. Điều này chứng minh rằng việc kiểm soát chiến lược giải mã mang lại lợi ích bổ trợ quan trọng bên cạnh các cải tiến kiến trúc biểu diễn.
 
 \subsection{Đánh giá Tổng thể Mô hình Tiền huấn luyện trên Tập Kiểm thử Chung}
 
@@ -527,17 +529,17 @@ Bảng \ref{tab:general_eval} trình bày kết quả đánh giá trên toàn b�
   \caption{Kết quả đánh giá trên tập kiểm thử chung (General Set, $n = 1{,}000$). Giá trị in đậm biểu thị kết quả tốt nhất trên từng cột.}
   \label{tab:general_eval}
   \resizebox{\textwidth}{!}{
-  \begin{tabular}{@{}lcccccc@{}}
+  \begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{ROUGE-Lsum} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
+\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
 \midrule
-Lead-3                     & 45.75 & 21.87 & 28.99 & 28.98 & 8.79 & \textbf{72.69} \\
-TextRank                   & 36.88 & 18.99 & 24.94 & 24.93 & 6.37 & 71.52 \\
+Lead-3                     & 45.75 & 21.87 & 28.99 & 8.79 & \textbf{72.69} \\
+TextRank                   & 36.88 & 18.99 & 24.94 & 6.37 & 71.52 \\
 \midrule
-FFT -- BARTpho             & 50.24 & 15.27 & 30.52 & 30.51 & 2.25 & 66.46 \\
-LoRA -- BARTpho            & 50.17 & 14.93 & 30.40 & 30.41 & 2.34 & 66.29 \\
-LoRA -- Qwen2.5            & 47.85 & 20.42 & 30.22 & 30.25 & 9.19 & 70.34 \\
-LoRA -- Qwen2.5 + GTF      & \textbf{51.28} & \textbf{23.05} & \textbf{31.26} & \textbf{31.28} & \textbf{10.29} & 72.52 \\
+FFT -- BARTpho             & 50.24 & 15.27 & 30.52 & 2.25 & 66.46 \\
+LoRA -- BARTpho            & 50.17 & 14.93 & 30.40 & 2.34 & 66.29 \\
+LoRA -- Qwen2.5            & 47.85 & 20.42 & 30.22 & 9.19 & 70.34 \\
+LoRA -- Qwen2.5 + GTF      & \textbf{51.28} & \textbf{23.05} & \textbf{31.26} & \textbf{10.29} & 72.52 \\
 \bottomrule
 \end{tabular}}
 \end{table*}
@@ -616,13 +618,13 @@ Bảng \ref{tab:long_eval} và Hình \ref{fig:long} trình bày kết quả trê
   \caption{Kết quả đánh giá trên tập văn bản dài (Long Document Set, bài báo $\geq 800$ từ, $n = 69$). Giá trị in đậm biểu thị kết quả tốt nhất trên từng cột.}
   \label{tab:long_eval}
   \resizebox{\textwidth}{!}{
-  \begin{tabular}{@{}lcccccc@{}}
+  \begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{ROUGE-Lsum} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
+\textbf{Phương pháp} & \textbf{ROUGE-1} & \textbf{ROUGE-2} & \textbf{ROUGE-L} & \textbf{BLEU} & \textbf{BERTScore-F1} \\
 \midrule
-FFT -- BARTpho (Truncation 1024)    & \textbf{47.79} & 12.05 & 26.94 & 26.93 & 1.22 & 63.64 \\
-FFT -- BARTpho (Map-Reduce Sliding Window) & 47.05 & 12.49 & 26.16 & 26.16 & 0.64 & 62.98 \\
-LoRA -- Qwen2.5 (Native 2048)       & 45.38 & \textbf{16.81} & \textbf{27.06} & \textbf{27.08} & \textbf{6.27} & \textbf{68.94} \\
+FFT -- BARTpho (Truncation 1024)    & \textbf{47.79} & 12.05 & 26.94 & 1.22 & 63.64 \\
+FFT -- BARTpho (Map-Reduce Sliding Window) & 47.05 & 12.49 & 26.16 & 0.64 & 62.98 \\
+LoRA -- Qwen2.5 (Native 2048)       & 45.38 & \textbf{16.81} & \textbf{27.06} & \textbf{6.27} & \textbf{68.94} \\
 \bottomrule
 \end{tabular}}
 \end{table*}
@@ -644,19 +646,21 @@ Mặt khác, ROUGE-1 của Qwen2.5 (45.38) thấp hơn BARTpho Normal Truncation
 
 \subsection{Đánh giá Chất lượng Sinh bằng LLM-as-a-Judge}
 
-Bên cạnh các độ đo tự động truyền thống, chúng tôi áp dụng phương pháp LLM-as-a-Judge sử dụng mô hình Gemini 3.5 Flash-Lite (được tối ưu hóa cho tốc độ và hiệu quả chi phí) để đánh giá đa chiều chất lượng văn bản sinh ra trên một tập mẫu ngẫu nhiên gồm 100 bài báo từ tập kiểm thử chung. Mỗi cặp (bài báo gốc, bản tóm tắt) được đưa vào prompt yêu cầu mô hình chấm điểm trên thang 1--5 cho 4 tiêu chí: Sự liên quan (Relevance -- bản tóm tắt có bao quát đúng các ý chính không?), Tính mạch lạc (Coherence -- cấu trúc logic giữa các câu), Tính nhất quán (Consistency -- không chứa thông tin bịa đặt so với bài gốc), và Độ trôi chảy (Fluency -- ngữ pháp, chính tả, hành văn tự nhiên). Mô hình được yêu cầu trả về kết quả dưới định dạng JSON chuẩn hóa, không kèm giải thích, nhằm đảm bảo tính nhất quán trong phân tích cú pháp đầu ra. Bảng \ref{tab:llm_judge} và Hình \ref{fig:llm_judge} trình bày kết quả đánh giá.
+Bên cạnh các độ đo tự động truyền thống, chúng tôi áp dụng phương pháp LLM-as-a-Judge sử dụng mô hình Gemini 3.5 Flash-Lite (được tối ưu hóa cho tốc độ và hiệu quả chi phí) để đánh giá đa chiều chất lượng văn bản sinh ra trên một tập mẫu ngẫu nhiên gồm 100 bài báo từ tập kiểm thử chung. Mỗi cặp (bài báo gốc, bản tóm tắt) được đưa vào prompt yêu cầu mô hình chấm điểm trên thang 1--5 cho 4 tiêu chí: Sự liên quan (Relevance -- bản tóm tắt có bao quát đúng các ý chính không?), Tính mạch lạc (Coherence -- cấu trúc logic giữa các câu), Tính nhất quán (Consistency -- không chứa thông tin bịa đặt so với bài gốc), và Độ trôi chảy (Fluency -- ngữ pháp, chính tả, hành văn tự nhiên). Mô hình được yêu cầu trả về kết quả dưới định dạng JSON chuẩn hóa, nhằm đảm bảo tính nhất quán trong phân tích. Bảng \ref{tab:llm_judge} và Hình \ref{fig:llm_judge} trình bày kết quả.
 
 \begin{table}[H]
 \centering
-\caption{Kết quả đánh giá LLM-as-a-Judge trên thang điểm 1-5. Giá trị in đậm biểu thị kết quả tốt nhất.}
+\caption{Kết quả đánh giá LLM-as-a-Judge trên thang điểm 1-5. Giá trị in đậm biểu thị kết quả tốt nhất trong các mô hình tiền huấn luyện.}
 \label{tab:llm_judge}
 \begin{tabular}{@{}lcccc@{}}
 \toprule
 \textbf{Phương pháp} & \textbf{Relevance} & \textbf{Coherence} & \textbf{Consistency} & \textbf{Fluency} \\
 \midrule
-FFT -- BARTpho & \textbf{2.80} & \textbf{3.55} & \textbf{4.06} & \textbf{2.73} \\
-LoRA -- BARTpho & 2.73 & 3.48 & 3.89 & 2.67 \\
-LoRA -- Qwen2.5 & 2.44 & 2.22 & 3.39 & \textbf{2.73} \\
+FFT -- BARTpho & 2.75 & \textbf{3.51} & \textbf{4.05} & 2.76 \\
+LoRA -- Qwen2.5 & 2.54 & 2.29 & 3.37 & 2.74 \\
+LoRA -- Qwen2.5 + GTF & \textbf{2.80} & 2.72 & 3.57 & \textbf{3.31} \\
+\midrule
+Entity Guided + GTF (Custom) & 1.05 & 1.28 & 1.02 & 1.58 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -664,15 +668,17 @@ LoRA -- Qwen2.5 & 2.44 & 2.22 & 3.39 & \textbf{2.73} \\
   \begin{figure}[H]
       \centering
       \includegraphics[width=0.7\textwidth]{Images/llm_judge.png}
-      \caption{Biểu đồ so sánh điểm số LLM-as-a-Judge trên 4 tiêu chí. Qwen2.5 đạt độ trôi chảy (Fluency) tương đương BARTpho FFT nhưng thấp hơn đáng kể ở các tiêu chí cấu trúc và ngữ nghĩa.}
+      \caption{Biểu đồ so sánh điểm số LLM-as-a-Judge trên 4 tiêu chí.}
       \label{fig:llm_judge}
   \end{figure}
 
-Về độ trôi chảy (Fluency), Qwen2.5 đạt \textbf{2.73}, ngang bằng với mô hình FFT-BARTpho tốt nhất và cao hơn LoRA-BARTpho (2.67). Phát hiện này phần nào nhất quán với quan sát từ chỉ số BLEU và BERTScore trước đó, gợi ý rằng Qwen2.5 có khả năng sinh văn bản tương đối trôi chảy -- dù cần lưu ý rằng kết quả này cũng có thể chịu ảnh hưởng từ quy mô dữ liệu tiền huấn luyện lớn hơn nhiều bậc của Qwen2.5.
+\paragraph{Sự lột xác của Causal LM nhờ thuật toán GTF.} 
+Kết quả chấm điểm minh chứng rất rõ rệt cho hiện tượng kẹt lặp (Exposure Bias) của Causal LM và sức mạnh của thuật toán GTF-Penalty. Khi chưa có GTF, \textbf{LoRA -- Qwen2.5} có điểm Tính mạch lạc (Coherence) cực thấp (2.29) do hiện tượng sinh từ lặp lại luẩn quẩn, làm đứt gãy cấu trúc logic của văn bản. Tuy nhiên, sau khi áp dụng \textbf{GTF-Penalty}, mô hình đã có sự lột xác toàn diện: điểm Coherence tăng vọt lên 2.72, Độ trôi chảy (Fluency) vọt lên mức cao nhất bảng (3.31), và Sự liên quan (Relevance) cũng vượt lên dẫn đầu (2.80). Điều này khẳng định cơ chế phạt tần suất suy giảm cấu hình cục bộ không chỉ giải quyết triệt để lỗi lặp từ, mà còn "cởi trói" cho sức mạnh tiềm tàng của kiến trúc Causal LM, giúp nó sinh ra các câu văn tự nhiên và đi thẳng vào trọng tâm.
 
-Tuy nhiên, Qwen2.5 lại cho điểm thấp hơn hẳn ở 3 tiêu chí còn lại: Relevance (2.44), Coherence (2.22), và Consistency (3.39). \textit{Cần lưu ý rằng kết quả chấm điểm này được thực hiện trên cấu hình Qwen2.5 nguyên bản (chưa áp dụng thuật toán GTF-Penalty)}. Do đó, mức điểm rất thấp ở tiêu chí Coherence (2.22) chính là minh chứng độc lập (từ góc nhìn của giám khảo AI) cho hiện tượng \textit{Exposure Bias} (kẹt lặp từ) đã được chúng tôi phân tích ở Mục 5.2. Mặc dù văn bản sinh ra có thể trôi chảy ở vài câu đầu (Fluency giữ mức 2.73), mô hình sau đó rơi vào vòng lặp, phá vỡ hoàn toàn tính liên kết logic của đoạn văn (Coherence) và làm suy giảm nặng nề khả năng truyền tải đúng trọng tâm (Relevance/Consistency). Sự sụt giảm này một lần nữa củng cố tầm quan trọng sống còn của việc phải trang bị thuật toán phạt lặp có chọn lọc (như GTF) khi sử dụng kiến trúc Causal LLM cho bài toán tóm tắt.
+\paragraph{Nghịch lý ROUGE và Giới hạn của Custom Transformer.}
+Một phát hiện mang tính bước ngoặt của nghiên cứu nằm ở kết quả của mô hình tự thiết kế \textbf{Entity Guided + GTF (Custom)}. Dù đạt điểm ROUGE-1 rất ấn tượng (50.00, tương đương các mô hình SOTA), LLM Judge lại chấm mô hình này ở mức gần bét bảng trên mọi tiêu chí ngữ nghĩa (Consistency = 1.02, Relevance = 1.05). Sự chênh lệch này phơi bày một lỗ hổng chí mạng của các thước đo N-gram (như ROUGE) khi đối chiếu với mô hình huấn luyện từ đầu (train-from-scratch) trên tập dữ liệu nhỏ (10.000 bài báo). 
 
-Cần lưu ý rằng phần lớn các mô hình đều đạt điểm trung bình dưới 4.0/5.0, trong đó tiêu chí quan trọng nhất là Relevance chỉ dao động ở mức 2.44--2.80. Điều này cho thấy chất lượng tóm tắt tự động trên tiếng Việt nhìn chung vẫn còn khoảng cách đáng kể so với kỳ vọng, và việc cải thiện khả năng chắt lọc thông tin trọng tâm (Relevance) cùng tổ chức văn bản mạch lạc (Coherence) là hướng nghiên cứu cần được ưu tiên.
+Cụ thể, mô hình Custom Transformer đã học được cách "chụp giật" từ khóa (ví dụ sinh ra chính xác các cụm \textit{"Quân đội Nga"}, \textit{"Syria"}) giúp điểm ROUGE-1 đo độ trùng lặp từ vựng tăng vọt. Tuy nhiên, do thiếu đi bộ tham số tiền huấn luyện (Pre-training) khổng lồ như BARTpho (20GB) hay Qwen2.5 (18 Nghìn Tỷ tokens), mô hình tự thiết kế hoàn toàn thất bại trong việc ráp nối các từ khóa này thành một câu đúng ngữ pháp, dẫn đến các câu kết thúc đột ngột hoặc sai lệch logic hoàn toàn so với bản gốc. LLM Judge đã phát hiện và trừng phạt đích đáng sự suy thoái ngữ nghĩa này. Phát hiện này là lời cảnh tỉnh về việc lạm dụng độ đo ROUGE: trong kỷ nguyên LLM, độ đo truyền thống rất dễ bị "đánh lừa" bởi các mô hình sinh từ khóa rời rạc, và LLM-as-a-judge là công cụ không thể thiếu để đối chiếu chất lượng tạo sinh thực tế.
 
 \subsection{Phân tích Lỗi (Error Analysis)}
 
@@ -715,7 +721,7 @@ Nghiên cứu này đã thực hiện đánh giá toàn diện bài toán tóm t
 \toprule
 \textbf{RQ} & \textbf{Câu hỏi} & \textbf{Phát hiện chính} \\
 \midrule
-RQ1 & Cải tiến cấu trúc lõi và GTF-Penalty & Việc thay thế cấu trúc (RoPE, RMSNorm, SwiGLU) và phạt lặp từ (GTF-Penalty) giúp tăng vọt ROUGE-1 từ 47.32 lên 51.96 ở mô hình huấn luyện từ đầu \\
+RQ1 & Cải tiến cấu trúc lõi và GTF-Penalty & Việc thay thế cấu trúc (RoPE, RMSNorm, SwiGLU) và phạt lặp từ (GTF-Penalty) giúp tăng vọt ROUGE-1 từ 34.37 lên 50.00 ở mô hình huấn luyện từ đầu \\
 RQ2 & Seq2Seq vs. Causal LLM & Qwen2.5 kết hợp GTF-Penalty đạt đỉnh SOTA trên mọi chỉ số sinh (ROUGE-1: 51.28, BLEU: 10.29), vượt qua hoàn toàn BARTpho (ROUGE-1: 50.24, BLEU: 2.25) \\
 RQ3 & LoRA vs. Full Fine-Tuning & LoRA tiệm cận FFT ($\Delta$ ROUGE-1 = 0.07, tương đương 0.14\%) với $<$5\% tham số \\
 RQ4 & Sliding Window vs. Native Long-Context & Native Long-Context vượt trội (BLEU 6.27 vs 0.64), Map-Reduce gây Information Bottleneck \\
