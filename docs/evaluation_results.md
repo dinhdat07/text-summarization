@@ -37,3 +37,18 @@ Tài liệu này trình bày các chỉ số đánh giá chất lượng tóm t�
 | **BARTpho (Full Fine-tuning)** | 2.80 | 3.55 | 4.06 | 2.73 |
 | **BARTpho (LoRA)** | 2.73 | 3.48 | 3.89 | 2.67 |
 | **Qwen2.5-0.5B (LoRA)** | 2.44 | 2.22 | 3.39 | 2.73 |
+## 4. Đánh giá mô hình Transformer (Train from scratch)
+
+**Mục tiêu:** Đánh giá các biến thể kiến trúc Transformer và Mamba được huấn luyện từ đầu (train from scratch) trên tập dữ liệu.
+
+| Mô hình | ROUGE-1 | ROUGE-2 | ROUGE-L | BLEU | BERTScore (F1) |
+|---------|---------|---------|---------|------|----------------|
+| Baseline Transformer | 44.61 | 11.06 | 27.10 | 1.41 | 70.01 |
+| Improved Baseline | 48.52 | 11.78 | 27.93 | 1.70 | 70.12 |
+| Soft Prompt Mamba | 45.92 | 10.23 | 27.03 | 1.28 | 69.89 |
+| Entity Gated Mamba | 47.44 | 11.24 | 28.31 | 1.20 | 69.38 |
+| Transformer Hypersphere | 48.04 | 13.18 | 29.01 | 2.25 | 70.43 |
+| Entity Guided Hybrid Mamba | 49.17 | 13.40 | 29.16 | 2.21 | 70.85 |
+| **Entity Guided Pure Transformer** | **50.00** | **14.01** | **29.74** | **2.57** | **70.88** |
+
+*(Lưu ý: Các chỉ số trên là kết quả tốt nhất khi áp dụng penalty trong quá trình giải mã)*
