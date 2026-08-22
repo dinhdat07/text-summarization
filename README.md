@@ -42,7 +42,7 @@ Dự án được tổ chức theo cấu trúc sau để đảm bảo tính rõ 
 ### Bước 1: Khởi động Backend
 Backend đóng vai trò cung cấp API suy luận cho các mô hình và tự động cào bài báo.
 
-\\ash
+\\bash
 cd demo/backend
 # Khuyến khích tạo môi trường ảo (virtual environment) trước khi cài đặt
 pip install -r requirements.txt
