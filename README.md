@@ -25,7 +25,7 @@ Dự án được tổ chức theo cấu trúc sau để đảm bảo tính rõ 
 - \demo/\: Mã nguồn của ứng dụng Web Demo.
   - \backend/\: API server viết bằng FastAPI, chịu trách nhiệm tải mô hình, thực hiện suy luận (inference), và cào dữ liệu báo chí (web scraping).
   - \frontend/\: Giao diện người dùng viết bằng React + Vite + Tailwind CSS.
-- \docs/\: Chứa tài liệu dự án, nổi bật nhất là file \EVALUATION_RESULTS.md\ tổng hợp toàn bộ kết quả đánh giá mô hình.
+- \docs/\: Chứa tài liệu dự án, tổng hợp toàn bộ kết quả đánh giá mô hình.
 - \models/\: Thư mục chứa các trọng số mô hình đã huấn luyện (được đưa vào .gitignore do dung lượng lớn).
 - \notebooks/\: Các file Jupyter Notebook ghi lại toàn bộ quá trình nghiên cứu: Khám phá dữ liệu (EDA), Huấn luyện (FFT, LoRA), Đánh giá và Phân tích chiến lược giải mã (Decoding Strategies).
 - \paper/\: Mã nguồn LaTeX của báo cáo khoa học/bài báo nghiên cứu.
