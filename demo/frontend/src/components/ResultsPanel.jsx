@@ -1,7 +1,7 @@
 import { Sparkles } from 'lucide-react';
 import ModelCard from './ModelCard';
 
-const MODEL_ORDER = ['bartpho_fft', 'bartpho_lora', 'qwen_lora'];
+const MODEL_ORDER = ['bartpho_fft', 'bartpho_lora', 'qwen_lora', 'custom_transformer'];
 
 export default function ResultsPanel({ predictions, metrics, loading }) {
   if (!predictions && !loading) return null;

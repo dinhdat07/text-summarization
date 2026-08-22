@@ -26,3 +26,5 @@ PREDICTIONS_CSV = PROJECT_ROOT / "results" / "all_models_predictions_postprocess
 MAX_INPUT_LENGTH = 1024
 MAX_OUTPUT_LENGTH = 256
 NUM_BEAMS = 4
+
+CUSTOM_MODEL_PATH = MODELS_DIR / 'custom_transformer'

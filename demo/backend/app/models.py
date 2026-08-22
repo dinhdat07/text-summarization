@@ -3,6 +3,11 @@ import logging
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 from peft import PeftModel
+
+from app.config import CUSTOM_MODEL_PATH
+from app.custom_model_arch import EntityGuidedPureTransformer
+from tokenizers import Tokenizer
+
 from app.config import (
     BARTPHO_FFT_PATH, BARTPHO_LORA_PATH, QWEN_LORA_PATH,
     BARTPHO_BASE, QWEN_BASE,
@@ -98,6 +103,31 @@ def load_models() -> list:
         except Exception as e:
             logger.warning(f"Failed to load Qwen2.5 LoRA: {e}")
 
+
+    # 4. Custom Transformer (EntityGuidedPureTransformer)
+    if CUSTOM_MODEL_PATH.exists():
+        try:
+            logger.info(f"Loading Custom Transformer from {CUSTOM_MODEL_PATH}...")
+            # Load tokenizer
+            tokenizer_path = CUSTOM_MODEL_PATH / "train_summarization_tokenizer.json"
+            custom_tokenizer = Tokenizer.from_file(str(tokenizer_path))
+            
+            # Load model
+            model = EntityGuidedPureTransformer(d_model=512, d_ff=1365, d_ff_new=1365, h=8, N=11)
+            ckpt_path = CUSTOM_MODEL_PATH / "best_checkpoint.pt"
+            ckpt = torch.load(str(ckpt_path), map_location=device)
+            state_dict = ckpt['model_state_dict']
+            if list(state_dict.keys())[0].startswith('module.'):
+                state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+            model.load_state_dict(state_dict)
+            model = model.to(device).eval()
+            
+            _models["custom_transformer"] = {"model": model, "tokenizer": custom_tokenizer, "type": "custom"}
+            _available_models.append("custom_transformer")
+            logger.info("Custom Transformer loaded successfully.")
+        except Exception as e:
+            logger.warning(f"Failed to load Custom Transformer: {e}")
+
     if not _available_models:
         logger.warning("No model checkpoints found. Only pre-computed sample browser will work.")
 
@@ -128,6 +158,7 @@ def generate_summary(model_name: str, text: str) -> str:
             outputs = model.generate(
                 **inputs, max_length=MAX_OUTPUT_LENGTH,
                 num_beams=NUM_BEAMS, early_stopping=True,
+                repetition_penalty=1.2, no_repeat_ngram_size=3,
             )
             # Set skip_special_tokens=False so <unk> (representing underscores) is preserved
             summary = tokenizer.decode(outputs[0], skip_special_tokens=False)
@@ -143,11 +174,38 @@ def generate_summary(model_name: str, text: str) -> str:
             outputs = model.generate(
                 **inputs, max_new_tokens=MAX_OUTPUT_LENGTH,
                 num_beams=NUM_BEAMS, early_stopping=True,
+                repetition_penalty=1.2, no_repeat_ngram_size=3,
                 pad_token_id=tokenizer.eos_token_id,
             )
             summary_ids = outputs[0][prompt_length:]
             summary = tokenizer.decode(summary_ids, skip_special_tokens=True)
             summary = _clean_text(summary)
+
+        elif model_type == "custom":
+            # Custom Tokenizer logic
+            enc = tokenizer.encode(text)
+            input_ids = enc.ids[:MAX_INPUT_LENGTH]
+            # Custom tokenizer has <BOS> (2), <EOS> (3), <PAD> (0)
+            src_token = torch.tensor([input_ids], dtype=torch.long, device=device)
+            src_mask = (src_token != 0).unsqueeze(1).unsqueeze(2) # [1, 1, 1, seq_len]
+            
+            summary_ids = model.generate_summary(
+                src_token, src_mask, 
+                bos_idx=2, eos_idx=3, pad_idx=0, 
+                max_len=MAX_OUTPUT_LENGTH, strategy='greedy_with_penalty', penalty_tensor=torch.ones(1, tokenizer.get_vocab_size(), device=device) * 1.5, base_penalty=5.0
+            )
+            # Decoder returns [batch, seq_len]
+            summary_ids = summary_ids[0].tolist()
+            # Stop at EOS if present
+            if 3 in summary_ids:
+                summary_ids = summary_ids[:summary_ids.index(3)]
+            # Remove BOS
+            if len(summary_ids) > 0 and summary_ids[0] == 2:
+                summary_ids = summary_ids[1:]
+            
+            summary = tokenizer.decode(summary_ids)
+            summary = _clean_text(summary)
+
         else:
             return "[Unknown model type]"
 

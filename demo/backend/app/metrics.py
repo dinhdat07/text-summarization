@@ -38,20 +38,21 @@ def compute_metrics(prediction: str, reference: str) -> dict:
         return {"rouge1": 0, "rouge2": 0, "rougeL": 0, "bleu": 0, "bertscore": 0}
 
     predictions = [prediction]
-    references = [reference]
+    references_rouge = [reference]
+    references_bleu = [[reference]]
 
     # ROUGE
-    rouge_result = _get_rouge().compute(predictions=predictions, references=references)
+    rouge_result = _get_rouge().compute(predictions=predictions, references=references_rouge)
 
     # BLEU
     try:
-        bleu_result = _get_bleu().compute(predictions=predictions, references=references)
+        bleu_result = _get_bleu().compute(predictions=predictions, references=references_bleu)
         bleu_score = bleu_result["bleu"]
     except (ZeroDivisionError, ValueError):
         bleu_score = 0.0
 
     # BERTScore
-    bert_result = _get_bertscore().compute(predictions=predictions, references=references, lang="vi")
+    bert_result = _get_bertscore().compute(predictions=predictions, references=references_rouge, lang="vi")
 
     return {
         "rouge1": round(rouge_result["rouge1"] * 100, 2),
