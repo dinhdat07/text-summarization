@@ -52,7 +52,7 @@ uvicorn app.main:app --reload --port 8000
 ### Bước 2: Khởi động Frontend
 Frontend là giao diện tương tác người dùng.
 
-\\ash
+\\bash
 cd demo/frontend
 npm install
 npm run dev
