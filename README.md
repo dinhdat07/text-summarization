@@ -23,13 +23,13 @@ Dự án được tổ chức theo cấu trúc sau để đảm bảo tính rõ 
 
 - \data/\: Chứa các script tiền xử lý và mẫu dữ liệu trích xuất từ tập VietNews.
 - \demo/\: Mã nguồn của ứng dụng Web Demo.
-  - \ackend/\: API server viết bằng FastAPI, chịu trách nhiệm tải mô hình, thực hiện suy luận (inference), và cào dữ liệu báo chí (web scraping).
-  - \rontend/\: Giao diện người dùng viết bằng React + Vite + Tailwind CSS.
+  - \backend/\: API server viết bằng FastAPI, chịu trách nhiệm tải mô hình, thực hiện suy luận (inference), và cào dữ liệu báo chí (web scraping).
+  - \frontend/\: Giao diện người dùng viết bằng React + Vite + Tailwind CSS.
 - \docs/\: Chứa tài liệu dự án, nổi bật nhất là file \EVALUATION_RESULTS.md\ tổng hợp toàn bộ kết quả đánh giá mô hình.
 - \models/\: Thư mục chứa các trọng số mô hình đã huấn luyện (được đưa vào .gitignore do dung lượng lớn).
-- otebooks/\: Các file Jupyter Notebook ghi lại toàn bộ quá trình nghiên cứu: Khám phá dữ liệu (EDA), Huấn luyện (FFT, LoRA), Đánh giá và Phân tích chiến lược giải mã (Decoding Strategies).
+- \notebooks/\: Các file Jupyter Notebook ghi lại toàn bộ quá trình nghiên cứu: Khám phá dữ liệu (EDA), Huấn luyện (FFT, LoRA), Đánh giá và Phân tích chiến lược giải mã (Decoding Strategies).
 - \paper/\: Mã nguồn LaTeX của báo cáo khoa học/bài báo nghiên cứu.
-- esults/\: Chứa các file CSV lưu trữ kết quả dự đoán của mô hình để phục vụ tính toán metrics và hiển thị mẫu trên Web Demo.
+- \results/\: Chứa các file CSV lưu trữ kết quả dự đoán của mô hình để phục vụ tính toán metrics và hiển thị mẫu trên Web Demo.
 - \scripts/\: Các đoạn script tiện ích hỗ trợ phân tích và tự động hóa.
 
 ## 3. Hướng dẫn Cài đặt và Sử dụng
